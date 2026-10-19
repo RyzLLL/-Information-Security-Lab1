@@ -1,0 +1,12 @@
+# Fixed environment: Apache HTTP Server 2.4.51 (CVE-2021-41773 patched)
+services:
+  apache:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    image: lab1-httpd-2.4.51-fixed
+    container_name: lab1-cve-41773-fixed
+    platform: linux/amd64
+    ports:
+      - "8080:80"
+    restart: "no"

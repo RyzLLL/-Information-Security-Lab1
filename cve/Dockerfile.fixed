@@ -1,0 +1,30 @@
+# ---------------------------------------------------------------------------
+# FIXED environment -- Apache HTTP Server 2.4.51
+#
+# Only ONE thing changes compared to the vulnerable build: the base image tag
+# (2.4.49 -> 2.4.51). Every configuration line below is identical, so the
+# experiment isolates a single variable: the patched ap_normalize_path() /
+# core path-mapping code. That is what makes "the attack no longer works"
+# attributable to the fix and not to a configuration change.
+#
+# Why 2.4.51 and not 2.4.50?
+#   2.4.50 shipped an incomplete fix (CVE-2021-42013, CVSS 9.8). 2.4.51 closes
+#   both the original traversal and the 2.4.50 bypass.
+# ---------------------------------------------------------------------------
+FROM httpd:2.4.51
+
+LABEL maintainer="lab1-secure-api" \
+      description="Apache 2.4.51 (patched) -- same config as the vulnerable build"
+
+RUN set -ex \
+    && sed -i "s|#LoadModule cgid_module modules/mod_cgid.so|LoadModule cgid_module modules/mod_cgid.so|g" /usr/local/apache2/conf/httpd.conf \
+    && sed -i "s|#LoadModule cgi_module modules/mod_cgi.so|LoadModule cgi_module modules/mod_cgi.so|g" /usr/local/apache2/conf/httpd.conf \
+    && sed -i "s|#Include conf/extra/httpd-autoindex.conf|Include conf/extra/httpd-autoindex.conf|g" /usr/local/apache2/conf/httpd.conf \
+    && cat /usr/local/apache2/conf/httpd.conf \
+       | tr '\n' '\r' \
+       | perl -pe 's|<Directory />.*?</Directory>|<Directory />\n    AllowOverride none\n    Require all granted\n</Directory>|isg' \
+       | tr '\r' '\n' \
+       | tee /tmp/httpd.conf \
+    && mv /tmp/httpd.conf /usr/local/apache2/conf/httpd.conf
+
+EXPOSE 80
