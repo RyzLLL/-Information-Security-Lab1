@@ -16,7 +16,7 @@ SCA on every push, and paired with a reproducible real-world CVE
 | Auth | bcrypt password hashes + short-lived HS256 JWT |
 | SAST | Bandit (plus SARIF upload to GitHub code scanning) |
 | SCA | pip-audit |
-| Tests | 74 pytest tests, incl. dedicated SQLi/XSS regression tests |
+| Tests | 75 pytest tests, incl. dedicated SQLi/XSS regression tests |
 | CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
@@ -187,6 +187,31 @@ attacker key, `alg=none`, wrong scheme, deleted users and the rate limiter.
 Both scanners also write their raw report into the GitHub **job summary**, so a
 screenshot of the run shows the tool output itself, not just a green check.
 
+### What they found, and what was fixed
+
+`bandit -r app -ll -ii` → `No issues identified` (636 LOC; three low-severity
+B105/B106 false positives on config keys such as `PASSWORD_MIN_LENGTH`).
+
+`pip-audit -r requirements.txt --strict` initially reported **23 known
+vulnerabilities in 2 packages** — `flask 3.1.2` (PYSEC-2026-2151, missing
+`Vary: Cookie`) and `pyjwt 2.10.1` (20 advisories: unvalidated `crit` header,
+algorithm-policy issues, …). Both pins were raised and the audit is now clean:
+
+```diff
+- flask==3.1.2
+- PyJWT==2.10.1
++ flask==3.1.3
++ PyJWT==2.15.0
+```
+
+```
+$ pip-audit -r requirements.txt --strict
+No known vulnerabilities found
+```
+
+All 75 tests pass on both the old and the new versions, so the upgrade did not
+merely hide a breakage.
+
 ### Screenshots
 
 > Replace these placeholders with your own runs after pushing.
@@ -262,7 +287,7 @@ command returning `404` on the fixed build, and the `verify-fix` PASS summary.
 ## 5. Tests
 
 ```bash
-pytest                                   # 74 tests
+pytest                                   # 75 tests
 pytest tests/test_sqli_xss.py -v         # only the attack regressions
 pytest --cov=app --cov-report=term-missing
 python scripts/validate_manifests.py     # ci.yml + compose files vs their schemas
@@ -271,8 +296,9 @@ python scripts/validate_manifests.py     # ci.yml + compose files vs their schem
 ```
 tests/test_auth.py        20 passed
 tests/test_api.py         23 passed
-tests/test_config.py       7 passed
+tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
+======================== 75 passed ========================
 ```
 
 ---
@@ -289,7 +315,7 @@ lab1-secure-api/
 │   ├── errors.py          # typed JSON errors, no stack-trace leakage
 │   ├── auth.py            # POST /auth/login
 │   └── api.py             # GET /api/data, POST /api/posts, GET /api/me
-├── tests/                 # 74 tests, incl. SQLi/XSS regressions
+├── tests/                 # 75 tests, incl. SQLi/XSS regressions
 ├── scripts/demo.ps1       # end-to-end walkthrough for screenshots
 ├── cve/                   # vulnerable env, exploit, patch, verification
 ├── .github/workflows/ci.yml

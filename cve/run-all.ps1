@@ -81,43 +81,66 @@ $started = Get-Date
 Assert-Docker
 Write-Host "Docker OK, target $target" -ForegroundColor Gray
 
-# ---------------------------------------------------------------------------
-Step "1/5  Vulnerable Apache 2.4.49 -- build and start"
-Compose $vulnCompose @("up", "-d", "--build")
-if (-not (Wait-Http $target)) { throw "The container did not answer on $target within 90s." }
-Write-Host "service is up" -ForegroundColor Green
+function Try-Down([string]$file) {
+    try { Compose $file @("down", "-v") }
+    catch { Write-Host ("cleanup failed for {0}: {1}" -f $file, $_.Exception.Message) -ForegroundColor DarkYellow }
+}
 
-# ---------------------------------------------------------------------------
-Step "2/5  Exploit (path traversal + RCE)"
-$exploitOut = Join-Path $evidenceDir "vulnerable.txt"
-& (Join-Path $here "exploit.ps1") -Target $target *> $exploitOut
-Get-Content $exploitOut
-$vulnHit = (Get-Content $exploitOut -Raw) -match "VULNERABLE: /etc/passwd was disclosed"
+$vulnUp = $false
+$fixedUp = $false
+$vulnHit = $false
+$verifyOk = $false
 
-# ---------------------------------------------------------------------------
-Step "3/5  Stop the vulnerable build"
-Compose $vulnCompose @("down", "-v")
+try {
+    # -----------------------------------------------------------------------
+    Step "1/5  Vulnerable Apache 2.4.49 -- build and start"
+    Compose $vulnCompose @("up", "-d", "--build")
+    $vulnUp = $true
+    if (-not (Wait-Http $target)) { throw "The container did not answer on $target within 90s." }
+    Write-Host "service is up" -ForegroundColor Green
 
-# ---------------------------------------------------------------------------
-Step "4/5  Patched Apache 2.4.51 -- build and start (same configuration)"
-Compose $fixedCompose @("up", "-d", "--build")
-if (-not (Wait-Http $target)) { throw "The patched container did not answer on $target within 90s." }
-Write-Host "service is up" -ForegroundColor Green
+    # -----------------------------------------------------------------------
+    Step "2/5  Exploit (path traversal + RCE)"
+    $exploitOut = Join-Path $evidenceDir "vulnerable.txt"
+    & (Join-Path $here "exploit.ps1") -Target $target *> $exploitOut
+    Get-Content $exploitOut
+    $vulnHit = (Get-Content $exploitOut -Raw) -match "VULNERABLE: /etc/passwd was disclosed"
 
-# ---------------------------------------------------------------------------
-Step "5/5  Replay the exploit and verify the fix"
-$fixedOut = Join-Path $evidenceDir "fixed.txt"
-& (Join-Path $here "verify-fix.ps1") -Target $target *> $fixedOut
-$nativeExit = $LASTEXITCODE
-Get-Content $fixedOut
-# Read the verdict out of the transcript as well, so a wrapper that swallows
-# the exit code cannot turn a failure into a pass.
-$fixedText = Get-Content $fixedOut -Raw
-$verifyOk = $fixedText -match "RESULT: fix verified"
-Write-Host ("verify-fix.ps1 exit code: {0}" -f $nativeExit) -ForegroundColor DarkGray
+    # -----------------------------------------------------------------------
+    Step "3/5  Stop the vulnerable build"
+    Compose $vulnCompose @("down", "-v")
+    $vulnUp = $false
 
-if (-not $KeepRunning) {
-    Compose $fixedCompose @("down", "-v")
+    # -----------------------------------------------------------------------
+    Step "4/5  Patched Apache 2.4.51 -- build and start (same configuration)"
+    Compose $fixedCompose @("up", "-d", "--build")
+    $fixedUp = $true
+    if (-not (Wait-Http $target)) { throw "The patched container did not answer on $target within 90s." }
+    Write-Host "service is up" -ForegroundColor Green
+
+    # -----------------------------------------------------------------------
+    Step "5/5  Replay the exploit and verify the fix"
+    $fixedOut = Join-Path $evidenceDir "fixed.txt"
+    & (Join-Path $here "verify-fix.ps1") -Target $target *> $fixedOut
+    $nativeExit = $LASTEXITCODE
+    Get-Content $fixedOut
+    # Read the verdict out of the transcript as well, so a wrapper that swallows
+    # the exit code cannot turn a failure into a pass.
+    $fixedText = Get-Content $fixedOut -Raw
+    $verifyOk = $fixedText -match "RESULT: fix verified"
+    Write-Host ("verify-fix.ps1 exit code: {0}" -f $nativeExit) -ForegroundColor DarkGray
+
+    if (-not $KeepRunning) {
+        Compose $fixedCompose @("down", "-v")
+        $fixedUp = $false
+    }
+}
+finally {
+    # Never leave a deliberately vulnerable Apache listening if anything threw.
+    if (-not $KeepRunning) {
+        if ($vulnUp) { Try-Down $vulnCompose }
+        if ($fixedUp) { Try-Down $fixedCompose }
+    }
 }
 
 # ---------------------------------------------------------------------------

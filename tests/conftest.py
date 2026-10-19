@@ -51,7 +51,8 @@ def app(db_path):
     cfg = {
         "TESTING": True,
         "DEBUG": False,
-        "SECRET_KEY": "unit-test-secret-key",
+        # >= 32 bytes, matching the HS256 requirement we enforce in production
+        "SECRET_KEY": "unit-test-secret-key-0123456789abcdef",
         "DATABASE": str(db_path),
         "BCRYPT_ROUNDS": 4,          # keep the suite fast
         "JWT_TTL_MINUTES": 15,

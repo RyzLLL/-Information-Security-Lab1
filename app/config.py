@@ -37,6 +37,13 @@ def load_config(name: str | dict | None = None) -> dict:
                 "SECRET_KEY is not set. Refusing to start in production with an "
                 "auto-generated signing key."
             )
+        if len(secret.encode("utf-8")) < 32:
+            # RFC 7518 §3.2: an HS256 key shorter than the 256-bit hash output
+            # weakens the MAC. PyJWT warns about this; we simply refuse to boot.
+            raise RuntimeError(
+                "SECRET_KEY must be at least 32 bytes for HS256 "
+                f"(got {len(secret.encode('utf-8'))})."
+            )
         cfg["SECRET_KEY"] = secret
         cfg["DEBUG"] = False
         cfg["TESTING"] = False

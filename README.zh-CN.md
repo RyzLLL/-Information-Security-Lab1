@@ -158,6 +158,29 @@ SQLite 报错文本。
 
 两个扫描器都会把原始报告写进 **Job Summary**，截图里能直接看到工具输出。
 
+### 扫到了什么、修了什么
+
+`bandit -r app -ll -ii` → `No issues identified`（636 行；另有 3 条 Low 误报，
+都是配置常量名里带 `PASSWORD` 触发的 B105/B106）。
+
+`pip-audit -r requirements.txt --strict` 初次运行报了 **2 个包共 23 个已知漏洞**：
+`flask 3.1.2`（PYSEC-2026-2151，缺少 `Vary: Cookie`）与 `pyjwt 2.10.1`
+（20 条公告：`crit` 头未校验、算法策略相关缺陷等）。升级版本后审计归零：
+
+```diff
+- flask==3.1.2
+- PyJWT==2.10.1
++ flask==3.1.3
++ PyJWT==2.15.0
+```
+
+```
+$ pip-audit -r requirements.txt --strict
+No known vulnerabilities found
+```
+
+75 个测试在升级前后都全绿，说明不是"升级把测试改绿了"。
+
 ### 截图
 
 > push 之后按上表位置截图，替换以下占位。
@@ -228,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.s
 ## 5. 测试
 
 ```bash
-pytest                                   # 74 个用例
+pytest                                   # 75 个用例
 pytest tests/test_sqli_xss.py -v         # 只跑攻击回归
 pytest --cov=app --cov-report=term-missing
 ```
@@ -236,8 +259,9 @@ pytest --cov=app --cov-report=term-missing
 ```
 tests/test_auth.py        20 passed
 tests/test_api.py         23 passed
-tests/test_config.py       7 passed
+tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
+======================== 75 passed ========================
 ```
 
 ---
@@ -247,7 +271,7 @@ tests/test_sqli_xss.py    24 passed
 ```
 lab1-secure-api/
 ├── app/                      应用代码（工厂 / 配置 / DB / 安全原语 / 路由）
-├── tests/                    74 个用例，含 SQLi、XSS 专项回归
+├── tests/                    75 个用例，含 SQLi、XSS 专项回归
 ├── scripts/demo.ps1          端到端演示，输出可截图
 ├── cve/                      漏洞环境、利用脚本、补丁、验证脚本、CVE 分析
 ├── .github/workflows/ci.yml  CI：测试 + Bandit + pip-audit

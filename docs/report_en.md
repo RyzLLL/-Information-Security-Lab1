@@ -30,10 +30,10 @@
 |---|---|
 | OS | Windows 11 (26100); CI runs on ubuntu-latest |
 | Python | 3.12.4 |
-| Framework | Flask 3.1.2 |
+| Framework | Flask 3.1.3 |
 | Database | SQLite 3 (WAL) |
-| Auth | PyJWT 2.10.1 (HS256) + bcrypt 4.3.0 (cost 12) |
-| Tests | pytest 8.4.2, 74 cases |
+| Auth | PyJWT 2.15.0 (HS256) + bcrypt 4.3.0 (cost 12) |
+| Tests | pytest 8.4.2, 75 cases |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | Containers | Docker Desktop + Docker Compose v2 |
@@ -66,7 +66,7 @@ app/
 ├── errors.py       uniform JSON errors, no stack traces
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data, POST /api/posts, GET /api/me
-tests/              74 tests incl. SQLi / XSS regressions
+tests/              75 tests incl. SQLi / XSS regressions
 cve/                vulnerable env, exploit, patch, verification
 .github/workflows/ci.yml
 ```
@@ -207,7 +207,7 @@ pytest --cov=app --cov-report=term-missing
 tests/test_auth.py        20 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 74 passed ========================
+======================== 75 passed ========================
 ```
 
 | Test | Assertion |
@@ -233,6 +233,60 @@ tests/test_sqli_xss.py    24 passed
 
 Both scanners also write their raw report into the **job summary**, so a
 screenshot shows the tool output, not just a green check.
+
+#### What the scanners actually found (re-run locally)
+
+**SAST — Bandit**
+
+```
+$ bandit -r app -ll -ii
+Test results:
+	No issues identified.
+Code scanned:
+	Total lines of code: 636
+	Total issues (by severity):
+		Low: 3   Medium: 0   High: 0
+```
+
+`-ll -ii` reports medium severity/confidence and above, so the gate is green.
+I reviewed all three low findings; each is a false positive caused by a config
+key that happens to contain `PASSWORD`:
+
+| Rule | Literal | Verdict |
+|---|---|---|
+| B105 | `PASSWORD_MAX_BYTES: 72` | bcrypt input limit, not a password |
+| B105 | `PASSWORD_MIN_LENGTH: 8` | password policy, not a password |
+| B106 | `"WWW-Authenticate": "Bearer …"` | HTTP auth scheme name, not a password |
+
+**SCA — pip-audit, and this one found something real**
+
+```
+$ pip-audit -r requirements.txt --strict
+Found 23 known vulnerabilities in 2 packages
+  flask  3.1.2   PYSEC-2026-2151                    fix 3.1.3
+  pyjwt  2.10.1  PYSEC-2026-120 / -175..-179 / -4140..-4183 …   fix 2.12.0 – 2.15.0
+```
+
+Several PyJWT entries are directly relevant here (unvalidated `crit` header,
+algorithm-policy issues); the Flask one is a missing `Vary: Cookie`. The fix is
+to raise the pins:
+
+```diff
+- flask==3.1.2
+- PyJWT==2.10.1
++ flask==3.1.3
++ PyJWT==2.15.0
+```
+
+```
+$ pip-audit -r requirements.txt --strict
+No known vulnerabilities found
+```
+
+All 75 tests still pass after the upgrade. To rule out "the suite only went
+green because the versions changed", the same suite was also run against the
+old versions (Flask 3.1.2 / PyJWT 2.10.1) — green there too. The only thing
+that changed is the audit result.
 
 **Where to screenshot**: *Actions → CI → latest run*; the *SAST - Bandit* and
 *SCA - pip-audit* job summaries; *Security → Code scanning*.
@@ -442,7 +496,7 @@ patches land in time.
 1. A working API and a secure API differ not in features but in **one decision
    at every trust boundary**: binding, encoding, signature verification, and
    error-message hygiene.
-2. Security tests must be regressions: 24 of the 74 cases exist to attack the
+2. Security tests must be regressions: 24 of the 75 cases exist to attack the
    application, so breaking a control turns CI red immediately.
 3. A CVE reproduction is valuable because it builds a **causal chain**: one
    `%2e`, one ordering bug, one `404` versus one `root:x:0:0`. Only with that

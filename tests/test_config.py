@@ -26,6 +26,14 @@ def test_production_accepts_an_explicit_secret_key(monkeypatch):
     assert cfg["TESTING"] is False
 
 
+def test_production_rejects_a_short_signing_key(monkeypatch):
+    """HS256 with a key shorter than the 32-byte hash output weakens the MAC
+    (RFC 7518 §3.2), so a short key must not be accepted in production."""
+    monkeypatch.setenv("SECRET_KEY", "too-short")
+    with pytest.raises(RuntimeError, match="at least 32 bytes"):
+        load_config("production")
+
+
 def test_development_never_reuses_a_signing_key(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     first = load_config("development")["SECRET_KEY"]

@@ -130,7 +130,9 @@ def test_token_signed_with_attacker_key_is_rejected(client, app):
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
         },
-        "attacker-controlled-secret",
+        # a wrong key of realistic length, so the failure is about the key
+        # value and not about PyJWT's short-key warning
+        "attacker-controlled-secret-0123456789",
         algorithm="HS256",
     )
     resp = client.get("/api/data", headers={"Authorization": f"Bearer {forged}"})
