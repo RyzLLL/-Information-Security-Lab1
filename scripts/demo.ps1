@@ -25,7 +25,10 @@
 param(
     [string]$BaseUrl  = "http://127.0.0.1:5000",
     [string]$Username = "alice",
-    [string]$Password = "Passw0rd!Alice"
+    [string]$Password = "Passw0rd!Alice",
+    # one line per response instead of pretty-printed JSON: use it when the run
+    # has to fit on a single screenshot
+    [switch]$Compact
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,16 +67,29 @@ function Show-Result {
     $script:step++
     $ok = if ($Expect) { $Expect -contains $Result.Status } else { $true }
     $flag = if ($ok) { "PASS" } else { "FAIL" }
-    Write-Host ""
-    Write-Host ("=" * 78) -ForegroundColor DarkGray
-    Write-Host ("[{0}] {1}" -f $script:step, $Title) -ForegroundColor Cyan
-    Write-Host ("=" * 78) -ForegroundColor DarkGray
-    if ($Result.Body) {
-        try   { $Result.Body | ConvertFrom-Json | ConvertTo-Json -Depth 8 }
-        catch { $Result.Body }
-    }
     $color = if ($ok) { "Green" } else { "Red" }
-    Write-Host ("--> HTTP {0}  [{1}]" -f $Result.Status, $flag) -ForegroundColor $color
+
+    if ($Compact) {
+        # three lines per step: title, one-line body, status -- fits on one screen
+        Write-Host ("[{0}] {1}" -f $script:step, $Title) -ForegroundColor Cyan
+        if ($Result.Body) {
+            $one = ($Result.Body -replace "\r?\n", " ")
+            if ($one.Length -gt 68) { $one = $one.Substring(0, 65) + "..." }
+            Write-Host ("    " + $one) -ForegroundColor DarkGray
+        }
+        Write-Host ("    --> HTTP {0}  [{1}]" -f $Result.Status, $flag) -ForegroundColor $color
+    }
+    else {
+        Write-Host ""
+        Write-Host ("=" * 78) -ForegroundColor DarkGray
+        Write-Host ("[{0}] {1}" -f $script:step, $Title) -ForegroundColor Cyan
+        Write-Host ("=" * 78) -ForegroundColor DarkGray
+        if ($Result.Body) {
+            try   { $Result.Body | ConvertFrom-Json | ConvertTo-Json -Depth 8 }
+            catch { $Result.Body }
+        }
+        Write-Host ("--> HTTP {0}  [{1}]" -f $Result.Status, $flag) -ForegroundColor $color
+    }
     if (-not $ok) { throw "Unexpected status $($Result.Status) for '$Title'" }
 }
 

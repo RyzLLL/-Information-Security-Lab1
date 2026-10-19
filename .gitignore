@@ -29,7 +29,12 @@ docs/report_zh.pdf
 docs/report_en.pdf
 docs/preview-*.png
 
-# Editors
+# Editors -- the PyCharm project files are kept so the project opens with the
+# run configurations ready; only the machine-local parts are ignored.
 .vscode/
-.idea/
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dictionaries/
+.idea/usage.statistics.xml
 .DS_Store
