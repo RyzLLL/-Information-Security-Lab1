@@ -33,7 +33,7 @@
 | Framework | Flask 3.1.3 |
 | Database | SQLite 3 (WAL) |
 | Auth | PyJWT 2.15.0 (HS256) + bcrypt 4.3.0 (cost 12) |
-| Tests | pytest 8.4.2, 77 cases |
+| Tests | pytest 8.4.2, 84 cases |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | Containers | Docker Desktop + Docker Compose v2 |
@@ -66,7 +66,7 @@ app/
 ├── errors.py       uniform JSON errors, no stack traces
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data, POST /api/posts, GET /api/me
-tests/              77 tests incl. SQLi / XSS regressions
+tests/              84 tests incl. SQLi / XSS regressions
 cve/                vulnerable env, exploit, patch, verification
 .github/workflows/ci.yml
 ```
@@ -210,7 +210,7 @@ pytest --cov=app --cov-report=term-missing
 tests/test_auth.py        22 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 77 passed ========================
+======================== 84 passed ========================
 ```
 
 Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly defensive branches such as over-long passwords, failed claim validation and rate-limit retries), and `ruff check` is clean.
@@ -222,6 +222,7 @@ Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly 
 | `test_sqli_error_messages_are_not_leaked` | no `sqlite` / `syntax error` / `select ` in the response |
 | `test_stored_xss_is_escaped_on_output` | raw `<script>` absent, `&lt;script&gt;` present |
 | `test_reflected_xss_is_escaped[5 payloads]` | no `<script` / `<img` / `<svg` / `<iframe` |
+| `test_other_methods_never_leak_the_feed[5 methods]` | unauthenticated HEAD/OPTIONS/PUT/DELETE/PATCH return no rows |
 | `test_alg_none_token_is_rejected` | 401 |
 | `test_token_signed_with_attacker_key_is_rejected` | 401 |
 | `test_login_is_rate_limited` | 6th attempt returns 429 + `Retry-After` |
@@ -289,7 +290,7 @@ $ pip-audit -r requirements.txt --strict
 No known vulnerabilities found
 ```
 
-All 77 tests still pass after the upgrade. To rule out "the suite only went
+All 84 tests still pass after the upgrade. To rule out "the suite only went
 green because the versions changed", the same suite was also run against the
 old versions (Flask 3.1.2 / PyJWT 2.10.1) — green there too. The only thing
 that changed is the audit result.
@@ -502,7 +503,7 @@ patches land in time.
 1. A working API and a secure API differ not in features but in **one decision
    at every trust boundary**: binding, encoding, signature verification, and
    error-message hygiene.
-2. Security tests must be regressions: 24 of the 77 cases exist to attack the
+2. Security tests must be regressions: 24 of the 84 cases exist to attack the
    application, so breaking a control turns CI red immediately.
 3. A CVE reproduction is valuable because it builds a **causal chain**: one
    `%2e`, one ordering bug, one `404` versus one `root:x:0:0`. Only with that

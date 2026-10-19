@@ -135,3 +135,25 @@ def test_error_responses_carry_security_headers(client):
 def test_health_and_login_are_public(client):
     assert client.get("/health").status_code == 200
     assert client.post("/auth/login", json={}).status_code == 401  # reachable, rejected
+
+
+def test_head_on_protected_endpoint_requires_auth(client, auth):
+    """HEAD is registered alongside GET; it must not become an unauthenticated
+    oracle for the feed."""
+    assert client.open("/api/data", method="HEAD").status_code == 401
+    assert client.open("/api/data", method="HEAD", headers=auth).status_code == 200
+
+
+@pytest.mark.parametrize("method", ["HEAD", "OPTIONS", "PUT", "DELETE", "PATCH"])
+def test_other_methods_never_leak_the_feed(client, method):
+    """Whatever the method, an unauthenticated caller must not receive rows."""
+    resp = client.open("/api/data", method=method)
+    assert resp.status_code in (200, 401, 405)
+    assert b"Welcome to the Lab 1 API" not in resp.data
+
+
+def test_options_advertises_only_safe_methods(client):
+    resp = client.open("/api/data", method="OPTIONS")
+    allowed = resp.headers.get("Allow", "")
+    assert "GET" in allowed.upper()
+    assert "DELETE" not in allowed.upper()

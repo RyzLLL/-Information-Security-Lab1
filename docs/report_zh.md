@@ -29,7 +29,7 @@
 | 框架 | Flask 3.1.3 |
 | 数据库 | SQLite 3（WAL 模式） |
 | 认证 | PyJWT 2.15.0（HS256）+ bcrypt 4.3.0（cost 12） |
-| 测试 | pytest 8.4.2，77 个用例 |
+| 测试 | pytest 8.4.2，84 个用例 |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | 容器 | Docker Desktop + Docker Compose v2 |
@@ -64,7 +64,7 @@ app/
 ├── errors.py       统一 JSON 错误，不泄露堆栈
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data、POST /api/posts、GET /api/me
-tests/              77 个用例（含 SQLi / XSS 回归）
+tests/              84 个用例（含 SQLi / XSS 回归）
 cve/                漏洞环境、利用脚本、补丁、验证脚本
 .github/workflows/ci.yml
 ```
@@ -213,7 +213,7 @@ pytest --cov=app --cov-report=term-missing
 tests/test_auth.py        22 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 77 passed ========================
+======================== 84 passed ========================
 ```
 
 覆盖率 **94%**（`pytest --cov=app`：394 行中 24 行未覆盖，基本都是防御性分支，如密码超长、声明校验失败、限速重试等）；`ruff check` 无告警。
@@ -227,6 +227,7 @@ tests/test_sqli_xss.py    24 passed
 | `test_sqli_error_messages_are_not_leaked` | 响应体不含 `sqlite` / `syntax error` / `select ` |
 | `test_stored_xss_is_escaped_on_output` | 原始 `<script>` 不出现，`&lt;script&gt;` 出现 |
 | `test_reflected_xss_is_escaped[5 payloads]` | `<script` / `<img` / `<svg` / `<iframe` 均不出现 |
+| `test_other_methods_never_leak_the_feed[5 methods]` | 未认证的 HEAD/OPTIONS/PUT/DELETE/PATCH 都拿不到数据行 |
 | `test_alg_none_token_is_rejected` | 401 |
 | `test_token_signed_with_attacker_key_is_rejected` | 401 |
 | `test_login_is_rate_limited` | 第 6 次返回 429 + `Retry-After` |
@@ -292,7 +293,7 @@ $ pip-audit -r requirements.txt --strict
 No known vulnerabilities found
 ```
 
-升级后 77 个测试仍然全绿；为了排除"靠降级/升版本把测试改绿"的可能，同一套测试在旧版本
+升级后 84 个测试仍然全绿；为了排除"靠降级/升版本把测试改绿"的可能，同一套测试在旧版本
 （Flask 3.1.2 / PyJWT 2.10.1）上也跑了一遍，同样全绿——差异只在依赖审计结果上。
 
 **截图位置**：
@@ -508,7 +509,7 @@ RESULT: fix verified -- all checks passed.
 
 1. 一个“能用”的 API 与一个“安全”的 API 差别不在功能，而在**每个信任边界上的一次决策**：
    参数绑定、输出编码、令牌验签、错误信息收敛。
-2. 安全测试必须可回归：77 个用例里有 24 个专门用来打自己，改坏了 CI 立刻变红。
+2. 安全测试必须可回归：84 个用例里有 24 个专门用来打自己，改坏了 CI 立刻变红。
 3. CVE 复现的价值在于**建立因果链**：一行 `%2e` → 一个函数的顺序错误 → 一次 404 与一次
    `root:x:0:0`。看懂这条链，才谈得上写出补丁和写出检测规则。
 4. 修复要以“同一配置、只变版本”的方式验证，并同时做回归测试；否则你无法区分
