@@ -213,6 +213,8 @@ tests/test_sqli_xss.py    24 passed
 ======================== 75 passed ========================
 ```
 
+覆盖率 **94%**（`pytest --cov=app`：394 行中 24 行未覆盖，基本都是防御性分支，如密码超长、声明校验失败、限速重试等）；`ruff check` 无告警。
+
 安全回归用例（部分）：
 
 | 用例 | 断言 |
@@ -228,11 +230,12 @@ tests/test_sqli_xss.py    24 passed
 
 ### 3.5 CI/CD 与 SAST/SCA
 
-`.github/workflows/ci.yml` 在每次 push 与 PR 时运行三个 job：
+`.github/workflows/ci.yml` 在每次 push 与 PR 时运行四个 job：
 
 | Job | 工具 | 作用 |
 |---|---|---|
 | `test` | pytest（3.11 / 3.12 矩阵 + 覆盖率） | 功能与安全回归 |
+| `lint` | `ruff check`（版本锁定） | 导入顺序、未使用名称、明显 bug |
 | `sast-bandit` | `bandit -r app -ll -ii`，并输出 SARIF 上传代码扫描 | 静态发现中高危问题 |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | 依赖已知漏洞 |
 
@@ -301,7 +304,7 @@ No known vulnerabilities found
 > ⬜ **待补截图**：`docs/screenshots/ci-green.png`、`bandit.png`、`pip-audit.png`
 > （push 到自己的仓库后按上表位置截图；图片放进 `docs/screenshots/` 后重新生成 HTML，会自动嵌入）
 
-![CI 流水线：三个 job 全绿](screenshots/ci-green.png)
+![CI 流水线：四个 job 全绿](screenshots/ci-green.png)
 
 ![Bandit（SAST）报告](screenshots/bandit.png)
 

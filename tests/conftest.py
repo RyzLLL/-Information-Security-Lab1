@@ -9,7 +9,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-
 from app import create_app
 
 ALICE = {"username": "alice", "password": "Passw0rd!Alice"}

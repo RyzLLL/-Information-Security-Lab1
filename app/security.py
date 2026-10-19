@@ -11,7 +11,7 @@ import secrets
 import threading
 import time
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 
 import bcrypt
@@ -56,7 +56,7 @@ def create_access_token(user_id: int, username: str, role: str) -> tuple[str, in
     """Issue a short-lived HS256 token. Returns (token, expires_in_seconds)."""
     cfg = current_app.config
     ttl = int(cfg["JWT_TTL_MINUTES"])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "username": username,

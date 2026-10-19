@@ -181,6 +181,7 @@ attacker key, `alg=none`, wrong scheme, deleted users and the rate limiter.
 | Job | Tool | What it proves |
 |---|---|---|
 | `test` | pytest (3.11 + 3.12 matrix, coverage) | functional + security regression tests pass |
+| `lint` | ruff (pinned) | imports, unused names, obvious bugs |
 | `sast-bandit` | Bandit (`-ll -ii`) + SARIF upload | no medium/high static findings; results appear in *Security → Code scanning* |
 | `sca-pip-audit` | pip-audit (`--strict`) | no known vulnerabilities in the pinned dependencies |
 
@@ -219,6 +220,7 @@ merely hide a breakage.
 | What | Where to click |
 |---|---|
 | Green pipeline | *Actions* → *CI* → latest run |
+| Lint | *Actions* → *CI* → *Lint - ruff* |
 | Bandit report | *Actions* → *CI* → *SAST - Bandit* → *Summary* |
 | pip-audit report | *Actions* → *CI* → *SCA - pip-audit* → *Summary* |
 | Code scanning findings | *Security* → *Code scanning* |
@@ -300,6 +302,8 @@ tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
 ======================== 75 passed ========================
 ```
+
+Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly defensive branches such as over-long passwords, failed claim validation and rate-limit retries), and `ruff check` is clean.
 
 ---
 

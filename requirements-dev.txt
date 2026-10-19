@@ -5,3 +5,4 @@ bandit>=1.7.9
 pip-audit>=2.7.3
 jsonschema>=4.20
 markdown>=3.5
+ruff==0.17.1

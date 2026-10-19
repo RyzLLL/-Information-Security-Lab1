@@ -10,7 +10,13 @@ from flask import Blueprint, g, jsonify, request
 
 from .db import create_post as db_create_post
 from .db import list_posts
-from .security import escape_value, jwt_required, parse_json_body, validate_int, validate_text
+from .security import (
+    escape_value,
+    jwt_required,
+    parse_json_body,
+    validate_int,
+    validate_text,
+)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 

@@ -153,6 +153,7 @@ SQLite 报错文本。
 | Job | 工具 | 作用 |
 |---|---|---|
 | `test` | pytest（3.11 / 3.12 矩阵 + 覆盖率） | 功能与安全回归 |
+| `lint` | `ruff check`（版本锁定） | 导入顺序、未使用名称、明显 bug |
 | `sast-bandit` | `bandit -r app -ll -ii` + SARIF 上传 | 静态发现中高危问题 |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | 依赖已知漏洞 |
 
@@ -188,6 +189,7 @@ No known vulnerabilities found
 | 内容 | 位置 |
 |---|---|
 | 绿色流水线 | Actions → CI → 最近一次运行 |
+| Lint | Actions → CI → *Lint - ruff* |
 | Bandit 报告 | Actions → CI → *SAST - Bandit* → Summary |
 | pip-audit 报告 | Actions → CI → *SCA - pip-audit* → Summary |
 | 代码扫描 | Security → Code scanning |
@@ -263,6 +265,8 @@ tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
 ======================== 75 passed ========================
 ```
+
+覆盖率 **94%**（`pytest --cov=app`：394 行中 24 行未覆盖，基本都是防御性分支，如密码超长、声明校验失败、限速重试等）；`ruff check` 无告警。
 
 ---
 

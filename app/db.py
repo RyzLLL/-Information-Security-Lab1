@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import current_app, g
 
@@ -51,7 +51,7 @@ SEED_POSTS = (
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def get_db() -> sqlite3.Connection:

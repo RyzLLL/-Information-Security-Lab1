@@ -5,8 +5,8 @@ import time
 
 import jwt as pyjwt
 import pytest
-
 from app.db import get_db
+
 from tests.conftest import ALICE
 
 

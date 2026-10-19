@@ -7,7 +7,6 @@ housekeeping.
 from __future__ import annotations
 
 import pytest
-
 from app import create_app
 from app.config import load_config
 

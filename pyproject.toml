@@ -5,6 +5,19 @@ addopts = "-q --strict-markers"
 # release; only the app's own warnings would be worth failing on, and those are
 # caught by the code review anyway.
 
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["app", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["B008"]  # FastAPI-style defaults are not used here
+
+[tool.ruff.lint.per-file-ignores]
+# the HTML template is full of long literal lines
+"scripts/build_report.py" = ["E501"]
+
 [tool.coverage.run]
 source = ["app"]
 omit = ["tests/*"]

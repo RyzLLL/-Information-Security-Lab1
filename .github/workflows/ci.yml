@@ -52,7 +52,27 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # 2. SAST -- Bandit (Python static application security testing)
+  # 2. Style / correctness lint (pinned, so it cannot drift)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint - ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install "ruff==0.17.1"
+
+      - name: ruff check
+        run: ruff check app tests scripts
+
+  # ---------------------------------------------------------------------------
+  # 3. SAST -- Bandit (Python static application security testing)
   # ---------------------------------------------------------------------------
   sast-bandit:
     name: SAST - Bandit

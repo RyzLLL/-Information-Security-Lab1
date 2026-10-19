@@ -210,6 +210,8 @@ tests/test_sqli_xss.py    24 passed
 ======================== 75 passed ========================
 ```
 
+Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly defensive branches such as over-long passwords, failed claim validation and rate-limit retries), and `ruff check` is clean.
+
 | Test | Assertion |
 |---|---|
 | `test_sqli_in_login_never_authenticates[7 payloads]` | 401 and no `access_token` in the body |
@@ -228,6 +230,7 @@ tests/test_sqli_xss.py    24 passed
 | Job | Tool | Purpose |
 |---|---|---|
 | `test` | pytest (3.11 / 3.12 matrix, coverage) | functional + security regressions |
+| `lint` | `ruff check` (pinned) | imports, unused names, obvious bugs |
 | `sast-bandit` | `bandit -r app -ll -ii` + SARIF upload | no medium/high static findings |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | no known vulnerable dependencies |
 
@@ -295,7 +298,7 @@ that changed is the audit result.
 > `pip-audit.png` (take them after pushing to your own repository; drop the
 > files into `docs/screenshots/` and rebuild the HTML to embed them).
 
-![CI pipeline: three green jobs](screenshots/ci-green.png)
+![CI pipeline: four green jobs](screenshots/ci-green.png)
 
 ![Bandit (SAST) report](screenshots/bandit.png)
 

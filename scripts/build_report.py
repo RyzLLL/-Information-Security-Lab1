@@ -117,7 +117,7 @@ def render(md_path: Path) -> Path:
 
     body = IMG_RE.sub(_img, body)
 
-    title_match = re.search(r"<h1[^>]*>(.*?)</h1>", body, re.S)
+    title_match = re.search(r"<h1[^>]*>(.*?)</h1>", body, re.DOTALL)
     title = re.sub(r"<[^>]+>", "", title_match.group(1)).strip() if title_match else md_path.stem
 
     doc = f"""<!DOCTYPE html>
