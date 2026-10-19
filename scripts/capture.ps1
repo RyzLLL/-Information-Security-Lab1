@@ -19,6 +19,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Command,
     [Parameter(Mandatory = $true)][string]$Out,
     [int]$Settle = 20,
+    [int]$Height = 1020,
     [string]$Title = ""
 )
 
@@ -55,7 +56,7 @@ if ($hwnd -eq [IntPtr]::Zero) {
 }
 
 # big enough for a whole transcript
-[void][Win32]::SetWindowPos($hwnd, [IntPtr]::Zero, 8, 8, 1180, 1020, 0x0040)
+[void][Win32]::SetWindowPos($hwnd, [IntPtr]::Zero, 8, 8, 1180, $Height, 0x0040)
 [void][Win32]::ShowWindow($hwnd, 9)
 [void][Win32]::SetForegroundWindow($hwnd)
 

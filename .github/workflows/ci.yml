@@ -77,9 +77,6 @@ jobs:
   sast-bandit:
     name: SAST - Bandit
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -95,10 +92,6 @@ jobs:
         run: |
           bandit -r app -ll -ii -f txt -o bandit-report.txt
           cat bandit-report.txt
-
-      - name: Build SARIF for GitHub code scanning
-        continue-on-error: true
-        run: bandit -r app -f sarif -o bandit.sarif
 
       - name: Publish report to the job summary
         if: always()
@@ -118,14 +111,6 @@ jobs:
           name: bandit-report
           path: bandit-report.txt
           if-no-files-found: warn
-
-      - name: Upload SARIF to code scanning
-        if: always()
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: bandit.sarif
-          category: bandit
 
   # ---------------------------------------------------------------------------
   # 3. SCA -- dependency vulnerability audit
