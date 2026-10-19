@@ -52,11 +52,11 @@ def login():
     if user is None:
         # Burn the same amount of CPU as a real verification, at the same cost.
         verify_password(password, _dummy_hash(cfg["BCRYPT_ROUNDS"]))
-        login_limiter.register_failure(key)
+        login_limiter.register_failure(key, cfg["LOGIN_WINDOW_SECONDS"])
         raise AuthError("Invalid username or password.")
 
     if not verify_password(password, user["password_hash"]):
-        login_limiter.register_failure(key)
+        login_limiter.register_failure(key, cfg["LOGIN_WINDOW_SECONDS"])
         raise AuthError("Invalid username or password.")
 
     login_limiter.reset(key)

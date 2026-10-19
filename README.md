@@ -16,7 +16,7 @@ SCA on every push, and paired with a reproducible real-world CVE
 | Auth | bcrypt password hashes + short-lived HS256 JWT |
 | SAST | Bandit (plus SARIF upload to GitHub code scanning) |
 | SCA | pip-audit |
-| Tests | 75 pytest tests, incl. dedicated SQLi/XSS regression tests |
+| Tests | 77 pytest tests, incl. dedicated SQLi/XSS regression tests |
 | CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
@@ -210,7 +210,7 @@ $ pip-audit -r requirements.txt --strict
 No known vulnerabilities found
 ```
 
-All 75 tests pass on both the old and the new versions, so the upgrade did not
+All 77 tests pass on both the old and the new versions, so the upgrade did not
 merely hide a breakage.
 
 ### Screenshots
@@ -289,18 +289,18 @@ command returning `404` on the fixed build, and the `verify-fix` PASS summary.
 ## 5. Tests
 
 ```bash
-pytest                                   # 75 tests
+pytest                                   # 77 tests
 pytest tests/test_sqli_xss.py -v         # only the attack regressions
 pytest --cov=app --cov-report=term-missing
 python scripts/validate_manifests.py     # ci.yml + compose files vs their schemas
 ```
 
 ```
-tests/test_auth.py        20 passed
+tests/test_auth.py        22 passed
 tests/test_api.py         23 passed
 tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
-======================== 75 passed ========================
+======================== 77 passed ========================
 ```
 
 Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly defensive branches such as over-long passwords, failed claim validation and rate-limit retries), and `ruff check` is clean.
@@ -319,7 +319,7 @@ lab1-secure-api/
 │   ├── errors.py          # typed JSON errors, no stack-trace leakage
 │   ├── auth.py            # POST /auth/login
 │   └── api.py             # GET /api/data, POST /api/posts, GET /api/me
-├── tests/                 # 75 tests, incl. SQLi/XSS regressions
+├── tests/                 # 77 tests, incl. SQLi/XSS regressions
 ├── scripts/demo.ps1       # end-to-end walkthrough for screenshots
 ├── cve/                   # vulnerable env, exploit, patch, verification
 ├── .github/workflows/ci.yml

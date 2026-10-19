@@ -232,19 +232,40 @@ class LoginRateLimiter:
     In-process and therefore per-worker: good enough for a lab deployment and
     a deliberate talking point for the report (Redis would be the production
     answer).
+
+    Two properties matter for memory safety:
+
+    * a *read* never allocates an entry, so probing /auth/login with random
+      usernames cannot grow the table (only a failed password does);
+    * the table is bounded (``MAX_KEYS``), evicting expired buckets first and
+      then the least recently used one.
     """
+
+    MAX_KEYS = 5_000
 
     def __init__(self) -> None:
         self._hits: dict[tuple[str, str], deque[float]] = {}
         self._lock = threading.Lock()
 
-    def _bucket(self, key: tuple[str, str]) -> deque[float]:
-        return self._hits.setdefault(key, deque())
+    def _make_room(self, now: float, window: int) -> None:
+        if len(self._hits) < self.MAX_KEYS:
+            return
+        for key in [k for k, b in self._hits.items() if not b or now - b[-1] > window]:
+            del self._hits[key]
+        overflow = len(self._hits) - self.MAX_KEYS + 1
+        if overflow > 0:
+            oldest = sorted(
+                self._hits.items(), key=lambda kv: kv[1][-1] if kv[1] else 0.0
+            )[:overflow]
+            for key, _ in oldest:
+                del self._hits[key]
 
     def check(self, key: tuple[str, str], max_attempts: int, window: int) -> None:
         now = time.monotonic()
         with self._lock:
-            bucket = self._bucket(key)
+            bucket = self._hits.get(key)
+            if not bucket:
+                return  # nothing recorded for this key yet: no allocation
             while bucket and now - bucket[0] > window:
                 bucket.popleft()
             if len(bucket) >= max_attempts:
@@ -254,9 +275,14 @@ class LoginRateLimiter:
                     headers={"Retry-After": str(max(1, retry_after))},
                 )
 
-    def register_failure(self, key: tuple[str, str]) -> None:
+    def register_failure(self, key: tuple[str, str], window: int) -> None:
+        now = time.monotonic()
         with self._lock:
-            self._bucket(key).append(time.monotonic())
+            self._make_room(now, window)
+            bucket = self._hits.setdefault(key, deque())
+            while bucket and now - bucket[0] > window:
+                bucket.popleft()
+            bucket.append(now)
 
     def reset(self, key: tuple[str, str]) -> None:
         with self._lock:

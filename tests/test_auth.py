@@ -170,3 +170,26 @@ def test_login_is_rate_limited(client, login):
     assert "Retry-After" in blocked.headers
     # A different account is not affected by bob's failures.
     assert login(ALICE).status_code == 200
+
+
+def test_login_limiter_does_not_allocate_on_read(client):
+    """Probing /auth/login with random usernames must not grow the table."""
+    from app.security import login_limiter
+
+    for i in range(50):
+        client.post("/auth/login", json={"username": f"user{i:03d}", "password": "x"})
+    # Every one of those *failed*, so entries exist -- but check() itself must
+    # not create entries for keys that were never recorded.
+    before = len(login_limiter._hits)
+    login_limiter.check(("10.9.9.9", "never-seen"), 5, 300)
+    assert len(login_limiter._hits) == before
+
+
+def test_login_limiter_table_is_bounded(monkeypatch):
+    from app.security import LoginRateLimiter
+
+    limiter = LoginRateLimiter()
+    monkeypatch.setattr(LoginRateLimiter, "MAX_KEYS", 10)
+    for i in range(100):
+        limiter.register_failure((f"10.0.0.{i}", "someone"), window=300)
+    assert len(limiter._hits) <= 10

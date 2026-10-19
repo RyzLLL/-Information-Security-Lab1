@@ -180,7 +180,7 @@ $ pip-audit -r requirements.txt --strict
 No known vulnerabilities found
 ```
 
-75 个测试在升级前后都全绿，说明不是"升级把测试改绿了"。
+77 个测试在升级前后都全绿，说明不是"升级把测试改绿了"。
 
 ### 截图
 
@@ -253,17 +253,17 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.s
 ## 5. 测试
 
 ```bash
-pytest                                   # 75 个用例
+pytest                                   # 77 个用例
 pytest tests/test_sqli_xss.py -v         # 只跑攻击回归
 pytest --cov=app --cov-report=term-missing
 ```
 
 ```
-tests/test_auth.py        20 passed
+tests/test_auth.py        22 passed
 tests/test_api.py         23 passed
 tests/test_config.py       8 passed
 tests/test_sqli_xss.py    24 passed
-======================== 75 passed ========================
+======================== 77 passed ========================
 ```
 
 覆盖率 **94%**（`pytest --cov=app`：394 行中 24 行未覆盖，基本都是防御性分支，如密码超长、声明校验失败、限速重试等）；`ruff check` 无告警。
@@ -275,7 +275,7 @@ tests/test_sqli_xss.py    24 passed
 ```
 lab1-secure-api/
 ├── app/                      应用代码（工厂 / 配置 / DB / 安全原语 / 路由）
-├── tests/                    75 个用例，含 SQLi、XSS 专项回归
+├── tests/                    77 个用例，含 SQLi、XSS 专项回归
 ├── scripts/demo.ps1          端到端演示，输出可截图
 ├── cve/                      漏洞环境、利用脚本、补丁、验证脚本、CVE 分析
 ├── .github/workflows/ci.yml  CI：测试 + Bandit + pip-audit
