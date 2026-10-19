@@ -1,12 +1,12 @@
 # Lab 1 — Secure REST API Development with CI/CD and Real CVE Analysis
 
-> **Work no.**: 1
-> **Title**: Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis
-> **Variant**: `<your variant number>`
-> **Name**: `<Surname Name>`
-> **HDU number**: `<student id>`
-> **Date**: 2026-10-19
-> **Repository**: `https://github.com/<OWNER>/<REPO>`
+> **Work no.**: 1<br>
+> **Title**: Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis<br>
+> **Variant**: `<your variant number>`<br>
+> **Name**: `<Surname Name>`<br>
+> **HDU number**: `<student id>`<br>
+> **Date**: 2026-10-19<br>
+> **Repository**: `https://github.com/<OWNER>/<REPO>`<br>
 > **Pipeline**: `https://github.com/<OWNER>/<REPO>/actions`
 
 ---

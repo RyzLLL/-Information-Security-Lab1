@@ -24,6 +24,10 @@ pip-audit-report.json
 # Generated from the Markdown by scripts/build_report.py
 docs/report_zh.html
 docs/report_en.html
+# The PDF is the submission artefact: build it once the screenshots are in.
+docs/report_zh.pdf
+docs/report_en.pdf
+docs/preview-*.png
 
 # Editors
 .vscode/

@@ -1,12 +1,12 @@
 # 实验一 报告：安全 REST API 开发、CI/CD 与真实 CVE 漏洞分析
 
-> **实验编号**：Work 1（实验 1）
-> **实验题目**：Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis
-> **变体号**：`<填写你的变体号>`
-> **姓名**：`<姓 名>`
-> **HDU 号（学号）**：`<填写学号>`
-> **日期**：2026-10-19
-> **仓库地址**：`https://github.com/<OWNER>/<REPO>`
+> **实验编号**：Work 1（实验 1）<br>
+> **实验题目**：Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis<br>
+> **变体号**：`<填写你的变体号>`<br>
+> **姓名**：`<姓 名>`<br>
+> **HDU 号（学号）**：`<填写学号>`<br>
+> **日期**：2026-10-19<br>
+> **仓库地址**：`https://github.com/<OWNER>/<REPO>`<br>
 > **CI 流水线地址**：`https://github.com/<OWNER>/<REPO>/actions`
 
 ---

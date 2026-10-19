@@ -1,17 +1,18 @@
-"""Render the Markdown reports to print-ready HTML (then "Save as PDF").
+"""Render the Markdown reports to print-ready HTML, optionally straight to PDF.
 
 There is no pandoc / Word pipeline on this machine, and the lab wants a PDF.
 A browser is the most reliable Markdown->PDF converter that is already
-installed: this script produces a self-contained, A4-styled HTML file, and you
-print it to PDF from Edge/Chrome.
+installed: this script produces a self-contained, A4-styled HTML file, and can
+also drive headless Edge/Chrome to print it to PDF.
 
 Usage
 -----
-    python scripts/build_report.py                 # both reports
+    python scripts/build_report.py                 # HTML only, both reports
+    python scripts/build_report.py --pdf           # HTML + PDF, both reports
     python scripts/build_report.py docs/report_zh.md
-    python scripts/build_report.py docs/report_zh.md docs/report_en.md
+    python scripts/build_report.py --pdf docs/report_zh.md docs/report_en.md
 
-Then: open the .html file, Ctrl+P, destination "Save as PDF",
+Without --pdf: open the .html file, Ctrl+P, destination "Save as PDF",
 paper A4, margins "Default", and tick "Background graphics".
 
 Missing screenshots are rendered as a dashed placeholder box that names the
@@ -21,7 +22,10 @@ from __future__ import annotations
 
 import html
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -40,6 +44,14 @@ body {
 }
 h1 { font-size: 1.65em; line-height: 1.3; margin: 0 0 .6em; padding-bottom: .3em; border-bottom: 2px solid #2c4a7c; }
 h1 + h1, h1:not(:first-of-type) { page-break-before: always; }
+/* The first blockquote in the reports carries the lab metadata: render it as a
+   cover page instead of a quotation, and start the body on a new page. */
+body > h1:first-of-type { font-size: 1.9em; margin: 1.5em 0 .9em; }
+body > blockquote:first-of-type {
+  border-left: none; background: none; padding: 0; margin: 0 0 1.2em;
+  font-size: 1.02em; line-height: 2.0; page-break-after: always;
+}
+body > blockquote:first-of-type strong { display: inline-block; min-width: 9em; }
 h2 { font-size: 1.22em; margin: 1.5em 0 .5em; padding-bottom: .18em; border-bottom: 1px solid #dde3ea; page-break-after: avoid; }
 h3 { font-size: 1.05em; margin: 1.2em 0 .4em; page-break-after: avoid; }
 h4 { font-size: 1em; margin: 1em 0 .3em; page-break-after: avoid; }
@@ -138,23 +150,97 @@ def render(md_path: Path) -> Path:
     return out
 
 
+BROWSERS = (
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/microsoft-edge",
+)
+
+
+def find_browser() -> str | None:
+    for candidate in BROWSERS:
+        if Path(candidate).exists():
+            return candidate
+    for name in ("msedge", "google-chrome", "chromium", "chrome"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+def to_pdf(browser: str, html_path: Path) -> Path | None:
+    """Print the HTML to PDF with a headless Chromium.
+
+    Chromium is the only Markdown->PDF converter guaranteed to be present on a
+    stock Windows machine, and it honours the @page rules in the stylesheet.
+    """
+    pdf_path = html_path.with_suffix(".pdf")
+    profile = Path(tempfile.mkdtemp(prefix="report-pdf-"))
+    cmd = [
+        browser,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--user-data-dir={profile}",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={pdf_path}",
+        html_path.resolve().as_uri(),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=180)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"! could not run the browser: {exc}")
+        return None
+    finally:
+        shutil.rmtree(profile, ignore_errors=True)
+    if pdf_path.exists() and pdf_path.stat().st_size > 10_000:
+        return pdf_path
+    print(f"! the browser exited {result.returncode} without a usable PDF")
+    return None
+
+
 def main(argv: list[str]) -> int:
     root = Path(__file__).resolve().parent.parent
-    targets = [Path(a) for a in argv[1:]] or [
+    args = [a for a in argv[1:] if not a.startswith("-")]
+    want_pdf = "--pdf" in argv
+    targets = [Path(a) for a in args] or [
         root / "docs" / "report_zh.md",
         root / "docs" / "report_en.md",
     ]
+
+    built: list[tuple[Path, Path]] = []
     for target in targets:
         path = target if target.is_absolute() else (Path.cwd() / target)
         if not path.exists():
             print(f"! missing: {path}")
             continue
         out = render(path)
+        built.append((path, out))
         print(f"-> {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out}")
+
+    if want_pdf:
+        browser = find_browser()
+        if browser is None:
+            print("! no Edge/Chrome found; open the HTML and use Ctrl+P instead")
+            return 1
+        for _, out in built:
+            pdf = to_pdf(browser, out)
+            if pdf:
+                size = pdf.stat().st_size // 1024
+                print(f"-> {pdf.relative_to(Path.cwd()) if pdf.is_relative_to(Path.cwd()) else pdf} ({size} KiB)")
+        return 0
 
     print()
     print("Open the .html file in Edge/Chrome, then Ctrl+P:")
     print("  destination = Save as PDF, paper = A4, margins = Default, background graphics = on")
+    print("Or let this script do it:  python scripts/build_report.py --pdf")
     return 0
 
 

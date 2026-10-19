@@ -210,19 +210,19 @@ docker compose -f docker-compose.fixed.yml down
 2. 把 5 张截图放进 `docs/screenshots/`，文件名照 `docs/screenshots/README.md`。
 3. 把 `docs/report_zh.md` 第 4.2 / 4.5 节里标了 ⬜ 的地方，换成你自己的实际输出
    （如果你跑出来的和预期不同，以你的实际输出为准——报告写的是你做过的事）。
-4. 报告要求 PDF。不用装 pandoc / Word，仓库里带了一个转换脚本：
+4. 报告要求 PDF。不用装 pandoc / Word，一条命令直接出 PDF：
 
 ```powershell
-python scripts\build_report.py
+python scripts\build_report.py --pdf
 ```
 
-   会生成 `docs/report_zh.html` 和 `docs/report_en.html`（A4 排版、表格/代码块都有样式）。
-   用 Edge/Chrome 打开 → `Ctrl+P` → 目标选 **"另存为 PDF"** → 纸张 A4、
-   边距"默认"、勾选 **"背景图形"** → 保存。
+   生成 `docs/report_zh.pdf` / `docs/report_en.pdf`（A4、首页独立封面、表格与代码块带样式，
+   当前各 13 页）。脚本会自动找 Edge 或 Chrome 做无头打印；找不到浏览器时会提示你
+   手动打开 HTML 按 `Ctrl+P`。
 
-   > 截图还没放进去时，PDF 里会显示一个红色虚线框并写明缺哪个文件——
+   > 截图还没放进去时，PDF 里第 3.5 / 4.2 / 4.5 节会显示红色虚线框并写明缺哪个文件——
    > 这是故意的，提醒你别交一份没图的报告。图片放进 `docs/screenshots/` 后
-   > 重新跑一次脚本即可自动嵌入。
+   > 重新跑一次脚本，图会自动嵌入。
 
 ---
 
