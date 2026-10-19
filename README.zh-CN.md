@@ -13,7 +13,7 @@
 | 认证 | bcrypt 口令哈希 + 短时效 HS256 JWT |
 | SAST | Bandit（并上传 SARIF 到代码扫描） |
 | SCA | pip-audit |
-| 测试 | 63 个 pytest 用例，含 SQLi / XSS 专项回归 |
+| 测试 | 72 个 pytest 用例，含 SQLi / XSS 专项回归 |
 | CVE | CVE-2021-41773 — Apache HTTP Server 2.4.49 路径穿越 → RCE |
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
 | 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
@@ -228,14 +228,15 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.s
 ## 5. 测试
 
 ```bash
-pytest                                   # 63 个用例
+pytest                                   # 72 个用例
 pytest tests/test_sqli_xss.py -v         # 只跑攻击回归
 pytest --cov=app --cov-report=term-missing
 ```
 
 ```
 tests/test_auth.py        19 passed
-tests/test_api.py         20 passed
+tests/test_api.py         22 passed
+tests/test_config.py       7 passed
 tests/test_sqli_xss.py    24 passed
 ```
 
@@ -246,7 +247,7 @@ tests/test_sqli_xss.py    24 passed
 ```
 lab1-secure-api/
 ├── app/                      应用代码（工厂 / 配置 / DB / 安全原语 / 路由）
-├── tests/                    63 个用例，含 SQLi、XSS 专项回归
+├── tests/                    72 个用例，含 SQLi、XSS 专项回归
 ├── scripts/demo.ps1          端到端演示，输出可截图
 ├── cve/                      漏洞环境、利用脚本、补丁、验证脚本、CVE 分析
 ├── .github/workflows/ci.yml  CI：测试 + Bandit + pip-audit

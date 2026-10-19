@@ -33,7 +33,7 @@
 | Framework | Flask 3.1.2 |
 | Database | SQLite 3 (WAL) |
 | Auth | PyJWT 2.10.1 (HS256) + bcrypt 4.3.0 (cost 12) |
-| Tests | pytest 8.4.2, 63 cases |
+| Tests | pytest 8.4.2, 72 cases |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | Containers | Docker Desktop + Docker Compose v2 |
@@ -66,7 +66,7 @@ app/
 ├── errors.py       uniform JSON errors, no stack traces
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data, POST /api/posts, GET /api/me
-tests/              63 tests incl. SQLi / XSS regressions
+tests/              72 tests incl. SQLi / XSS regressions
 cve/                vulnerable env, exploit, patch, verification
 .github/workflows/ci.yml
 ```
@@ -199,7 +199,7 @@ pytest --cov=app --cov-report=term-missing
 tests/test_auth.py        19 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 63 passed ========================
+======================== 72 passed ========================
 ```
 
 | Test | Assertion |
@@ -238,6 +238,25 @@ screenshot shows the tool output, not just a green check.
 ![Bandit (SAST) report](screenshots/bandit.png)
 
 ![pip-audit (SCA) report](screenshots/pip-audit.png)
+
+### 3.6 Known limitations (scope statement)
+
+Saying what this implementation deliberately does **not** do is more credible
+than claiming it is "secure". The trade-offs:
+
+| Limitation | Consequence | Production answer |
+|---|---|---|
+| The rate limiter is an in-process dict | With N workers each keeps its own counter, so the effective limit is N× higher | Redis counter, or rate limit at the gateway / WAF |
+| Client identity comes from `X-Forwarded-For` | Behind no trusted proxy that header is spoofable, bypassing the limiter | Enable it only behind a trusted proxy, else use `remote_addr` |
+| A JWT cannot be revoked before it expires | A stolen token works for up to 15 minutes (deleting the account does kill it) | Short TTL + refresh token + a `jti` denylist |
+| XSS escaping happens in the API layer | A client that escapes again would double-encode; the correct place is the render layer | API guarantees JSON types only; escape at render time + strict CSP |
+| No TLS | Lab-local; tokens and passwords travel in clear text | HTTPS + HSTS in production |
+| SQLite has a single writer | Concurrent writes queue | PostgreSQL |
+| Dependencies are pinned by version, not by hash | Supply-chain tampering is still possible | `pip install --require-hashes` + a lock file |
+| Logs record only the username | No structured audit trail or alerting | JSON logs + central audit + alert rules |
+
+None of these affect the lab objectives (3 endpoints, 4 controls, CI, the CVE
+loop), but they are worth stating out loud in a viva.
 
 ---
 
@@ -415,7 +434,7 @@ patches land in time.
 1. A working API and a secure API differ not in features but in **one decision
    at every trust boundary**: binding, encoding, signature verification, and
    error-message hygiene.
-2. Security tests must be regressions: 24 of the 63 cases exist to attack the
+2. Security tests must be regressions: 24 of the 72 cases exist to attack the
    application, so breaking a control turns CI red immediately.
 3. A CVE reproduction is valuable because it builds a **causal chain**: one
    `%2e`, one ordering bug, one `404` versus one `root:x:0:0`. Only with that

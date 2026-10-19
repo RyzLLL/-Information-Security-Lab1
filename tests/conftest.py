@@ -30,9 +30,24 @@ def _reset_rate_limiter():
 
 
 @pytest.fixture
-def app():
+def db_path():
+    """A throw-away SQLite path.
+
+    Deliberately *not* pytest's ``tmp_path``: directories created with mode
+    0o700 (which is what ``TemporaryDirectory`` does) lose the inherited access
+    grants under some Windows configurations, and the sandbox used for this
+    lab cannot even list them. A plain directory under the project works
+    everywhere and is listed in .gitignore.
+    """
     TEMP_ROOT.mkdir(parents=True, exist_ok=True)
-    db_path = TEMP_ROOT / f"test-{uuid.uuid4().hex}.db"
+    path = TEMP_ROOT / f"test-{uuid.uuid4().hex}.db"
+    yield path
+    for suffix in ("", "-wal", "-shm"):
+        Path(f"{path}{suffix}").unlink(missing_ok=True)
+
+
+@pytest.fixture
+def app(db_path):
     cfg = {
         "TESTING": True,
         "DEBUG": False,
@@ -44,10 +59,7 @@ def app():
         "LOGIN_MAX_ATTEMPTS": 5,
         "LOGIN_WINDOW_SECONDS": 300,
     }
-    application = create_app(cfg)
-    yield application
-    for suffix in ("", "-wal", "-shm"):
-        Path(f"{db_path}{suffix}").unlink(missing_ok=True)
+    return create_app(cfg)
 
 
 @pytest.fixture

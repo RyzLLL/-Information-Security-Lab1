@@ -16,7 +16,7 @@ SCA on every push, and paired with a reproducible real-world CVE
 | Auth | bcrypt password hashes + short-lived HS256 JWT |
 | SAST | Bandit (plus SARIF upload to GitHub code scanning) |
 | SCA | pip-audit |
-| Tests | 63 pytest tests, incl. dedicated SQLi/XSS regression tests |
+| Tests | 72 pytest tests, incl. dedicated SQLi/XSS regression tests |
 | CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
@@ -262,14 +262,15 @@ command returning `404` on the fixed build, and the `verify-fix` PASS summary.
 ## 5. Tests
 
 ```bash
-pytest                                   # 63 tests
+pytest                                   # 72 tests
 pytest tests/test_sqli_xss.py -v         # only the attack regressions
 pytest --cov=app --cov-report=term-missing
 ```
 
 ```
 tests/test_auth.py        19 passed
-tests/test_api.py         20 passed
+tests/test_api.py         22 passed
+tests/test_config.py       7 passed
 tests/test_sqli_xss.py    24 passed
 ```
 
@@ -287,7 +288,7 @@ lab1-secure-api/
 │   ├── errors.py          # typed JSON errors, no stack-trace leakage
 │   ├── auth.py            # POST /auth/login
 │   └── api.py             # GET /api/data, POST /api/posts, GET /api/me
-├── tests/                 # 63 tests, incl. SQLi/XSS regressions
+├── tests/                 # 72 tests, incl. SQLi/XSS regressions
 ├── scripts/demo.ps1       # end-to-end walkthrough for screenshots
 ├── cve/                   # vulnerable env, exploit, patch, verification
 ├── .github/workflows/ci.yml

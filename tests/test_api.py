@@ -99,3 +99,17 @@ def test_oversized_body_is_rejected(client, auth):
     big = {"title": "big", "body": "A" * (70 * 1024)}
     resp = client.post("/api/posts", headers=auth, json=big)
     assert resp.status_code == 413
+
+
+def test_error_responses_carry_security_headers(client):
+    """Hardening headers must survive the error path, not only 2xx responses."""
+    resp = client.get("/api/data")  # 401
+    assert resp.status_code == 401
+    assert resp.headers["X-Content-Type-Options"] == "nosniff"
+    assert resp.headers["Cache-Control"] == "no-store"
+    assert resp.headers["X-Frame-Options"] == "DENY"
+
+
+def test_health_and_login_are_public(client):
+    assert client.get("/health").status_code == 200
+    assert client.post("/auth/login", json={}).status_code == 401  # reachable, rejected
