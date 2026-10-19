@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\demo.ps1
 2. 在本项目目录里：
 
 ```powershell
-git remote add origin https://github.com/<你的用户名>/lab1-secure-api.git
+git remote add origin https://github.com/RyzLLL/-Information-Security-Lab1.git
 git branch -M main
 git push -u origin main
 ```
@@ -61,7 +61,7 @@ git push -u origin main
    （GitHub → Settings → Developer settings → Personal access tokens → Fine-grained，
    勾 `Contents: Read and write`）。不要使用账号密码。
 
-4. 把下面三处 `<OWNER>/<REPO>` 替换成你的实际地址：
+4. 把下面三处 `RyzLLL/-Information-Security-Lab1` 替换成你的实际地址：
 
    - `README.md` / `README.zh-CN.md` 顶部的 badge 和链接
    - `docs/report_en.md` / `docs/report_zh.md` 首页的仓库地址与流水线地址
@@ -76,7 +76,7 @@ git push
 
 ## 阶段 2 — 看 CI 跑起来，截图
 
-push 之后去 `https://github.com/<你>/lab1-secure-api/actions`：
+push 之后去 `https://github.com/RyzLLL/-Information-Security-Lab1/actions`：
 
 | 要截的图 | 怎么截 | 存成 |
 |---|---|---|
@@ -208,7 +208,7 @@ docker compose -f docker-compose.fixed.yml down
 **👉 你来做**：
 
 1. 打开 `docs/report_zh.md` 与 `docs/report_en.md`，把首页的
-   `<填写你的变体号>`、`<姓 名>`、`<填写学号>`、`<OWNER>/<REPO>` 换成真实信息。
+   `<填写你的变体号>`、`<姓 名>`、`<填写学号>`、`RyzLLL/-Information-Security-Lab1` 换成真实信息。
 2. 把 5 张截图放进 `docs/screenshots/`，文件名照 `docs/screenshots/README.md`。
 3. 把 `docs/report_zh.md` 第 4.2 / 4.5 节里标了 ⬜ 的地方，换成你自己的实际输出
    （如果你跑出来的和预期不同，以你的实际输出为准——报告写的是你做过的事）。
@@ -232,9 +232,9 @@ python scripts\build_report.py --pdf
 
 | # | 提交物 | 在哪 |
 |---|---|---|
-| 1 | 公开仓库链接 | `https://github.com/<你>/lab1-secure-api` |
+| 1 | 公开仓库链接 | `https://github.com/RyzLLL/-Information-Security-Lab1` |
 | 2 | README.md 内容 | 仓库根目录（含截图） |
-| 3 | 最近一次成功流水线链接 | `https://github.com/<你>/lab1-secure-api/actions` |
+| 3 | 最近一次成功流水线链接 | `https://github.com/RyzLLL/-Information-Security-Lab1/actions` |
 | 4 | 修复文件目录 | `cve/Dockerfile.fixed` + `cve/docker-compose.fixed.yml`（也可以打包 `cve/` 整个目录） |
 | 5 | 实验报告 | `docs/report_zh.pdf` / `docs/report_en.pdf` |
 

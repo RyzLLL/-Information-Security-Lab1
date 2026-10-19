@@ -8,7 +8,7 @@
 ## 1. 公开 Git 仓库链接
 
 ```
-https://github.com/<OWNER>/<REPO>
+https://github.com/RyzLLL/-Information-Security-Lab1
 ```
 
 - [ ] 仓库是 **public**
@@ -31,7 +31,7 @@ https://github.com/<OWNER>/<REPO>
 ## 3. 最近一次成功流水线的链接
 
 ```
-https://github.com/<OWNER>/<REPO>/actions
+https://github.com/RyzLLL/-Information-Security-Lab1/actions
 ```
 
 - [ ] `CI` 这次运行是绿的（4 个 job：test / lint / SAST - Bandit / SCA - pip-audit）

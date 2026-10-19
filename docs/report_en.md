@@ -6,8 +6,8 @@
 > **Name**: `<Surname Name>`<br>
 > **HDU number**: `<student id>`<br>
 > **Date**: 2026-10-19<br>
-> **Repository**: `https://github.com/<OWNER>/<REPO>`<br>
-> **Pipeline**: `https://github.com/<OWNER>/<REPO>/actions`
+> **Repository**: `https://github.com/RyzLLL/-Information-Security-Lab1`<br>
+> **Pipeline**: `https://github.com/RyzLLL/-Information-Security-Lab1/actions`
 
 ---
 
@@ -53,7 +53,7 @@ infrastructure work so the effort goes into the security code.
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements-dev.txt
 git init && git add . && git commit -m "feat: secure Flask API skeleton"
-git remote add origin https://github.com/<OWNER>/<REPO>.git
+git remote add origin https://github.com/RyzLLL/-Information-Security-Lab1.git
 git push -u origin main
 ```
 
@@ -628,9 +628,9 @@ control — that reappear across languages and frameworks.
 
 | # | Requirement | Status / location |
 |---|---|---|
-| 1 | Public git repository link | `https://github.com/<OWNER>/<REPO>` (pending push) |
+| 1 | Public git repository link | `https://github.com/RyzLLL/-Information-Security-Lab1` (pushed) |
 | 2 | README.md with project description, security measures, SAST/SCA screenshots, CVE, reproduction, root cause, fix, proof | `README.md` / `README.zh-CN.md` |
-| 3 | Link to the last successful pipeline | `https://github.com/<OWNER>/<REPO>/actions` |
+| 3 | Link to the last successful pipeline | `https://github.com/RyzLLL/-Information-Security-Lab1/actions` |
 | 4 | Folder with the fixes | `cve/Dockerfile.fixed`, `cve/docker-compose.fixed.yml` |
 | 5 | This report | `docs/report_en.md` (EN), `docs/report_zh.md` (ZH) |
 

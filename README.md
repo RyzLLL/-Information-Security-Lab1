@@ -1,14 +1,11 @@
 # Lab 1 — Secure REST API with CI/CD and a real CVE
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/RyzLLL/-Information-Security-Lab1/actions/workflows/ci.yml/badge.svg)](https://github.com/RyzLLL/-Information-Security-Lab1/actions/workflows/ci.yml)
 
 A small but deliberately complete Flask API that is built the way a security
 reviewer would ask you to build it, wired to a CI pipeline that runs SAST and
 SCA on every push, and paired with a reproducible real-world CVE
 (**CVE-2021-29441**) that is exploited, analysed and then fixed.
-
-> Replace `OWNER/REPO` in the badge URL (and in the links below) with your own
-> repository once it is pushed.
 
 | | |
 |---|---|

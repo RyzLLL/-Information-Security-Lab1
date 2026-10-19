@@ -1,11 +1,9 @@
 # 实验 1 — 安全 REST API + CI/CD + 真实 CVE 复现
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/RyzLLL/-Information-Security-Lab1/actions/workflows/ci.yml/badge.svg)](https://github.com/RyzLLL/-Information-Security-Lab1/actions/workflows/ci.yml)
 
 一个刻意做完整的小型 Flask API：按安全评审的标准实现，接上每次 push 自动跑 SAST/SCA
 的 CI，并配一个可复现的真实漏洞（**CVE-2021-29441**）——复现、分析根因、修复、验证。
-
-> 仓库地址 `OWNER/REPO` 请替换成你自己的。
 
 | | |
 |---|---|

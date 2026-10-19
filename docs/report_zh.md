@@ -6,8 +6,8 @@
 > **姓名**：`<姓 名>`<br>
 > **HDU 号（学号）**：`<填写学号>`<br>
 > **日期**：2026-10-19<br>
-> **仓库地址**：`https://github.com/<OWNER>/<REPO>`<br>
-> **CI 流水线地址**：`https://github.com/<OWNER>/<REPO>/actions`
+> **仓库地址**：`https://github.com/RyzLLL/-Information-Security-Lab1`<br>
+> **CI 流水线地址**：`https://github.com/RyzLLL/-Information-Security-Lab1/actions`
 
 ---
 
@@ -49,7 +49,7 @@
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements-dev.txt
 git init && git add . && git commit -m "feat: secure Flask API skeleton"
-git remote add origin https://github.com/<OWNER>/<REPO>.git
+git remote add origin https://github.com/RyzLLL/-Information-Security-Lab1.git
 git push -u origin main
 ```
 
@@ -611,9 +611,9 @@ server identity，连控制台都会被锁死。
 
 | # | 要求 | 状态 / 位置 |
 |---|---|---|
-| 1 | 公开 Git 仓库链接 | `https://github.com/<OWNER>/<REPO>`（待 push） |
+| 1 | 公开 Git 仓库链接 | `https://github.com/RyzLLL/-Information-Security-Lab1`（已 push） |
 | 2 | README.md（项目说明、安全措施、SAST/SCA 截图、CVE、复现、根因、修复、验证） | `README.md` / `README.zh-CN.md` |
-| 3 | 最近一次成功流水线链接 | `https://github.com/<OWNER>/<REPO>/actions`（待 push） |
+| 3 | 最近一次成功流水线链接 | `https://github.com/RyzLLL/-Information-Security-Lab1/actions`（已 push） |
 | 4 | 修复文件目录 | `cve/Dockerfile.fixed`、`cve/docker-compose.fixed.yml` |
 | 5 | 本报告 | `docs/report_zh.md`（中文）、`docs/report_en.md`（英文） |
 
