@@ -70,6 +70,17 @@ def test_passwords_are_bcrypt_hashed_not_plaintext(app):
     assert rounds == 4
 
 
+def test_timing_dummy_hash_matches_the_configured_cost(app):
+    """The decoy verification for unknown users must cost as much as a real one,
+    otherwise the "unknown user" path answers measurably faster."""
+    from app.auth import _dummy_hash
+
+    with app.app_context():
+        digest = _dummy_hash(app.config["BCRYPT_ROUNDS"])
+    assert digest.startswith("$2b$")
+    assert int(digest.split("$")[2]) == app.config["BCRYPT_ROUNDS"]
+
+
 def test_protected_endpoint_without_token(client):
     resp = client.get("/api/data")
     assert resp.status_code == 401

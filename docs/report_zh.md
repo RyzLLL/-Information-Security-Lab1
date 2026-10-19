@@ -29,7 +29,7 @@
 | 框架 | Flask 3.1.2 |
 | 数据库 | SQLite 3（WAL 模式） |
 | 认证 | PyJWT 2.10.1（HS256）+ bcrypt 4.3.0（cost 12） |
-| 测试 | pytest 8.4.2，72 个用例 |
+| 测试 | pytest 8.4.2，74 个用例 |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | 容器 | Docker Desktop + Docker Compose v2 |
@@ -64,7 +64,7 @@ app/
 ├── errors.py       统一 JSON 错误，不泄露堆栈
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data、POST /api/posts、GET /api/me
-tests/              72 个用例（含 SQLi / XSS 回归）
+tests/              74 个用例（含 SQLi / XSS 回归）
 cve/                漏洞环境、利用脚本、补丁、验证脚本
 .github/workflows/ci.yml
 ```
@@ -162,6 +162,11 @@ row = get_db().execute(
 2. `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`；
 3. 输入校验拒绝控制字符（`\x00`、`\x1b` 等）并限制长度，顺便挡住日志注入 / 响应头注入。
 
+校验还区分字段的"行数语义"：**标题**是单行字段，拒绝 `\n`、`\r` 与制表符；
+**正文**允许多行，但仍拒绝其他控制字符。两者用两个不同的正则（`NO_CONTROL_OR_NEWLINE_RE`
+与 `CONTROL_CHARS_RE`）。这一点是写完测试后回看代码时发现的——最初两条分支用了同一个正则，
+`allow_newlines=False` 实际没起作用（单行字段照样能塞换行），补了用例才暴露出来。
+
 #### 3.3.3 认证与会话
 
 | 要求 | 实现 |
@@ -202,10 +207,10 @@ pytest --cov=app --cov-report=term-missing
 ```
 
 ```
-tests/test_auth.py        19 passed
+tests/test_auth.py        20 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 72 passed ========================
+======================== 74 passed ========================
 ```
 
 安全回归用例（部分）：
@@ -447,7 +452,7 @@ RESULT: fix verified -- all checks passed.
 
 1. 一个“能用”的 API 与一个“安全”的 API 差别不在功能，而在**每个信任边界上的一次决策**：
    参数绑定、输出编码、令牌验签、错误信息收敛。
-2. 安全测试必须可回归：72 个用例里有 24 个专门用来打自己，改坏了 CI 立刻变红。
+2. 安全测试必须可回归：74 个用例里有 24 个专门用来打自己，改坏了 CI 立刻变红。
 3. CVE 复现的价值在于**建立因果链**：一行 `%2e` → 一个函数的顺序错误 → 一次 404 与一次
    `root:x:0:0`。看懂这条链，才谈得上写出补丁和写出检测规则。
 4. 修复要以“同一配置、只变版本”的方式验证，并同时做回归测试；否则你无法区分

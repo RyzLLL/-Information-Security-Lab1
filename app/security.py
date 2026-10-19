@@ -141,10 +141,12 @@ def jwt_required(view):
 # ---------------------------------------------------------------------------
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
-# Reject ASCII control characters other than tab/newline: they are never
-# legitimately part of a username, title or body and are used by log-injection
-# and header-injection tricks.
+# Multi-line fields (a post body) may contain tab/newline but no other ASCII
+# control characters: those are never legitimate and are the raw material of
+# log-injection and header-injection tricks.
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# Single-line fields (a title) additionally reject tab, CR and LF.
+NO_CONTROL_OR_NEWLINE_RE = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def validate_username(value: object) -> str:
@@ -182,8 +184,8 @@ def validate_text(value: object, field: str, *, min_len: int = 1,
         raise ValidationError(f"'{field}' must be at least {min_len} character(s) long.")
     if len(text) > max_len:
         raise ValidationError(f"'{field}' must be at most {max_len} characters long.")
-    pattern = r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]" if allow_newlines else CONTROL_CHARS_RE
-    if re.search(pattern, text):
+    pattern = CONTROL_CHARS_RE if allow_newlines else NO_CONTROL_OR_NEWLINE_RE
+    if pattern.search(text):
         raise ValidationError(f"'{field}' contains illegal control characters.")
     return text
 

@@ -33,7 +33,7 @@
 | Framework | Flask 3.1.2 |
 | Database | SQLite 3 (WAL) |
 | Auth | PyJWT 2.10.1 (HS256) + bcrypt 4.3.0 (cost 12) |
-| Tests | pytest 8.4.2, 72 cases |
+| Tests | pytest 8.4.2, 74 cases |
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | Containers | Docker Desktop + Docker Compose v2 |
@@ -66,7 +66,7 @@ app/
 ├── errors.py       uniform JSON errors, no stack traces
 ├── auth.py         POST /auth/login
 └── api.py          GET /api/data, POST /api/posts, GET /api/me
-tests/              72 tests incl. SQLi / XSS regressions
+tests/              74 tests incl. SQLi / XSS regressions
 cve/                vulnerable env, exploit, patch, verification
 .github/workflows/ci.yml
 ```
@@ -158,6 +158,14 @@ Three supporting controls: `application/json` plus
 `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, and input
 validation that rejects control characters and enforces length limits.
 
+Validation also respects each field's line semantics: a **title** is single
+line and rejects `\n`, `\r` and tabs, while a **body** may span lines but still
+rejects every other control character — two distinct patterns
+(`NO_CONTROL_OR_NEWLINE_RE` vs `CONTROL_CHARS_RE`). This came out of writing
+the tests and then re-reading the code: both branches originally used the same
+pattern, so `allow_newlines=False` did nothing and a title could still contain
+a newline. The new test caught it.
+
 #### 3.3.3 Authentication and sessions
 
 | Requirement | Implementation |
@@ -196,10 +204,10 @@ pytest --cov=app --cov-report=term-missing
 ```
 
 ```
-tests/test_auth.py        19 passed
+tests/test_auth.py        20 passed
 tests/test_api.py         20 passed
 tests/test_sqli_xss.py    24 passed
-======================== 72 passed ========================
+======================== 74 passed ========================
 ```
 
 | Test | Assertion |
@@ -434,7 +442,7 @@ patches land in time.
 1. A working API and a secure API differ not in features but in **one decision
    at every trust boundary**: binding, encoding, signature verification, and
    error-message hygiene.
-2. Security tests must be regressions: 24 of the 72 cases exist to attack the
+2. Security tests must be regressions: 24 of the 74 cases exist to attack the
    application, so breaking a control turns CI red immediately.
 3. A CVE reproduction is valuable because it builds a **causal chain**: one
    `%2e`, one ordering bug, one `404` versus one `root:x:0:0`. Only with that

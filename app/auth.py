@@ -21,11 +21,16 @@ from .security import (
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-@lru_cache(maxsize=1)
-def _dummy_hash() -> str:
+@lru_cache(maxsize=8)
+def _dummy_hash(rounds: int) -> str:
     """A throw-away hash used to keep the timing of "unknown user" and
-    "wrong password" indistinguishable (defeats user enumeration by timing)."""
-    return bcrypt.hashpw(b"dummy-password-for-timing", bcrypt.gensalt(4)).decode()
+    "wrong password" indistinguishable (defeats user enumeration by timing).
+
+    The cost factor must match the one used for real hashes, otherwise the
+    unknown-user branch returns noticeably faster and the whole point is lost;
+    hence the parameter (and a small cache per cost).
+    """
+    return bcrypt.hashpw(b"dummy-password-for-timing", bcrypt.gensalt(rounds)).decode()
 
 
 @auth_bp.post("/login")
@@ -45,8 +50,8 @@ def login():
     user = find_user_by_username(username)
 
     if user is None:
-        # Burn the same amount of CPU as a real verification.
-        verify_password(password, _dummy_hash())
+        # Burn the same amount of CPU as a real verification, at the same cost.
+        verify_password(password, _dummy_hash(cfg["BCRYPT_ROUNDS"]))
         login_limiter.register_failure(key)
         raise AuthError("Invalid username or password.")
 

@@ -101,6 +101,28 @@ def test_oversized_body_is_rejected(client, auth):
     assert resp.status_code == 413
 
 
+def test_title_rejects_newlines_while_body_allows_them(client, auth):
+    """Single-line and multi-line fields must not be validated identically."""
+    bad = client.post(
+        "/api/posts", headers=auth,
+        json={"title": "line one\nline two", "body": "fine"},
+    )
+    assert bad.status_code == 400
+    assert "title" in bad.get_json()["error"]["message"]
+
+    bad_crlf = client.post(
+        "/api/posts", headers=auth,
+        json={"title": "line one\r\nline two", "body": "fine"},
+    )
+    assert bad_crlf.status_code == 400
+
+    good = client.post(
+        "/api/posts", headers=auth,
+        json={"title": "single line", "body": "line one\nline two"},
+    )
+    assert good.status_code == 201
+
+
 def test_error_responses_carry_security_headers(client):
     """Hardening headers must survive the error path, not only 2xx responses."""
     resp = client.get("/api/data")  # 401

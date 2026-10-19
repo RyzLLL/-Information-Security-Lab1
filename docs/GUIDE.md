@@ -9,7 +9,7 @@
 
 ## 阶段 0 — 先确认仓库能跑
 
-**✅ 已完成**：API 代码、72 个测试、CI 配置、CVE 环境与脚本、中英文 README 与报告。
+**✅ 已完成**：API 代码、74 个测试、CI 配置、CVE 环境与脚本、中英文 README 与报告。
 
 **👉 你来做**：
 
@@ -19,7 +19,7 @@ cd "C:\Users\ryz20\OneDrive\文档\deepseek-harness\default-workspace\lab1-secur
 # 1. 装依赖（若已装过 flask/pytest 可跳过）
 pip install -r requirements-dev.txt
 
-# 2. 跑测试，应该是 72 passed
+# 2. 跑测试，应该是 74 passed
 python -m pytest -q
 
 # 3. 起服务
