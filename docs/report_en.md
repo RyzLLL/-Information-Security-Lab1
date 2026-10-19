@@ -298,9 +298,9 @@ that changed is the audit result.
 **Where to screenshot**: *Actions → CI → latest run*; the *SAST - Bandit* and
 *SCA - pip-audit* job summaries; *Security → Code scanning*.
 
-> ⬜ **Pending screenshots**: `docs/screenshots/ci-green.png`, `bandit.png`,
-> `pip-audit.png` (take them after pushing to your own repository; drop the
-> files into `docs/screenshots/` and rebuild the HTML to embed them).
+> All three are captured and embedded: `ci-green.png` is a real screenshot of
+> the GitHub run page, while `bandit.png` / `pip-audit.png` are the exact output
+> of the commands CI runs, rendered by `scripts/render_output.py`.
 
 ![CI pipeline: four green jobs](screenshots/ci-green.png)
 
@@ -634,11 +634,11 @@ control — that reappear across languages and frameworks.
 | 4 | Folder with the fixes | `cve/Dockerfile.fixed`, `cve/docker-compose.fixed.yml` |
 | 5 | This report | `docs/report_en.md` (EN), `docs/report_zh.md` (ZH) |
 
-### Still to do
+### Materials checklist
 
-- [ ] `docs/screenshots/ci-green.png`
-- [ ] `docs/screenshots/bandit.png`
-- [ ] `docs/screenshots/pip-audit.png`
-- [ ] `docs/screenshots/cve-exploit.png`
-- [ ] `docs/screenshots/cve-fixed.png`
+- [x] `docs/screenshots/ci-green.png`
+- [x] `docs/screenshots/bandit.png`
+- [x] `docs/screenshots/pip-audit.png`
+- [x] `docs/screenshots/cve-exploit.png`
+- [x] `docs/screenshots/cve-fixed.png`
 - [ ] Fill in the title page (work no., title, variant, name, HDU number)

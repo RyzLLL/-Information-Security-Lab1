@@ -305,8 +305,8 @@ No known vulnerabilities found
 | pip-audit 报告 | Actions → CI → *SCA - pip-audit* → Summary |
 | 代码扫描结果 | Security → Code scanning |
 
-> ⬜ **待补截图**：`docs/screenshots/ci-green.png`、`bandit.png`、`pip-audit.png`
-> （push 到自己的仓库后按上表位置截图；图片放进 `docs/screenshots/` 后重新生成 HTML，会自动嵌入）
+> 上面三张均已截好并嵌入本报告；`ci-green.png` 是 GitHub 运行页的真实截图，
+> `bandit.png` / `pip-audit.png` 是对 CI 中同一条命令输出的渲染（`scripts/render_output.py`）。
 
 ![CI 流水线：四个 job 全绿](screenshots/ci-green.png)
 
@@ -617,11 +617,11 @@ server identity，连控制台都会被锁死。
 | 4 | 修复文件目录 | `cve/Dockerfile.fixed`、`cve/docker-compose.fixed.yml` |
 | 5 | 本报告 | `docs/report_zh.md`（中文）、`docs/report_en.md`（英文） |
 
-### 待补材料
+### 材料清单
 
-- [ ] `docs/screenshots/ci-green.png` — 绿色流水线
-- [ ] `docs/screenshots/bandit.png` — Bandit Job Summary
-- [ ] `docs/screenshots/pip-audit.png` — pip-audit Job Summary
-- [ ] `docs/screenshots/cve-exploit.png` — 漏洞环境 403 基线 + 200 泄露 + `create user ok!`
-- [ ] `docs/screenshots/cve-fixed.png` — 修复后 403 + verify-fix PASS
+- [x] `docs/screenshots/ci-green.png` — 绿色流水线
+- [x] `docs/screenshots/bandit.png` — Bandit Job Summary
+- [x] `docs/screenshots/pip-audit.png` — pip-audit Job Summary
+- [x] `docs/screenshots/cve-exploit.png` — 漏洞环境 403 基线 + 200 泄露 + `create user ok!`
+- [x] `docs/screenshots/cve-fixed.png` — 修复后 403 + verify-fix PASS
 - [ ] 首页按手册要求补齐：编号、题目、变体号、姓名、HDU 号
