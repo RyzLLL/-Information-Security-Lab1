@@ -16,6 +16,8 @@
 | 测试 | 63 个 pytest 用例，含 SQLi / XSS 专项回归 |
 | CVE | CVE-2021-41773 — Apache HTTP Server 2.4.49 路径穿越 → RCE |
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
+| 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
+| Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
 
@@ -71,6 +73,10 @@ SQLi 尝试、XSS 尝试），输出可直接截图：
 python run.py            # 终端 1
 .\scripts\demo.ps1       # 终端 2
 ```
+
+用 Postman 的话，导入 [`docs/postman_collection.json`](docs/postman_collection.json)：
+先跑 *Login*（会把 JWT 存进集合变量 `{{token}}`），其余请求已带断言，
+可直接用 Collection Runner 跑一遍并截图。
 
 统一错误格式：
 

@@ -19,6 +19,8 @@ SCA on every push, and paired with a reproducible real-world CVE
 | Tests | 63 pytest tests, incl. dedicated SQLi/XSS regression tests |
 | CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
+| Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
+| Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
 
@@ -83,7 +85,9 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:5000/api/me
 Windows users: `scripts/demo.ps1` runs the whole walkthrough (login, 401
 without token, 401 with a forged token, 200 with a real one, create, SQLi
 attempt, XSS attempt) and prints a transcript that can be screenshotted
-directly.
+directly. Postman users can import `docs/postman_collection.json`: the *Login*
+request stores the JWT in the `{{token}}` collection variable and every request
+carries assertions for the Collection Runner.
 
 ```powershell
 python run.py            # terminal 1
