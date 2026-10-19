@@ -21,6 +21,7 @@ SCA on every push, and paired with a reproducible real-world CVE
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
 | No-Docker fallback | [`docs/PWD.md`](docs/PWD.md) — run the CVE on Play with Docker |
+| Submission checklist | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---

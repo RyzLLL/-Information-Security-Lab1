@@ -18,6 +18,7 @@
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
 | 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
 | 无 Docker 方案 | [`docs/PWD.md`](docs/PWD.md) — 在 Play with Docker 上跑 CVE |
+| 提交清单 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
