@@ -230,7 +230,14 @@ screenshot shows the tool output, not just a green check.
 *SCA - pip-audit* job summaries; *Security → Code scanning*.
 
 > ⬜ **Pending screenshots**: `docs/screenshots/ci-green.png`, `bandit.png`,
-> `pip-audit.png` (take them after pushing to your own repository).
+> `pip-audit.png` (take them after pushing to your own repository; drop the
+> files into `docs/screenshots/` and rebuild the HTML to embed them).
+
+![CI pipeline: three green jobs](screenshots/ci-green.png)
+
+![Bandit (SAST) report](screenshots/bandit.png)
+
+![pip-audit (SCA) report](screenshots/pip-audit.png)
 
 ---
 
@@ -281,6 +288,8 @@ uid=1(daemon) gid=1(daemon) groups=1(daemon)
 > client and the request never leaves the document root.
 
 > ⬜ **Pending screenshot**: `docs/screenshots/cve-exploit.png`
+
+![Vulnerable build: /etc/passwd disclosed and command execution](screenshots/cve-exploit.png)
 
 ### 4.3 Root cause
 
@@ -374,6 +383,8 @@ Fixing only the exact string from the advisory would be a blacklist fix, and
 2.4.50 is the cautionary tale. Hence the variants.
 
 > ⬜ **Pending screenshot**: `docs/screenshots/cve-fixed.png`
+
+![Fix verified: same request returns 404, verify-fix all PASS](screenshots/cve-fixed.png)
 
 ### 4.6 Defence in depth
 

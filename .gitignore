@@ -20,6 +20,9 @@ instance/
 # Reports / scanners
 bandit-report.json
 pip-audit-report.json
+# Generated from the Markdown by scripts/build_report.py
+docs/report_zh.html
+docs/report_en.html
 
 # Editors
 .vscode/

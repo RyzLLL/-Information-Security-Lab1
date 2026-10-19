@@ -244,7 +244,13 @@ tests/test_sqli_xss.py    24 passed
 | 代码扫描结果 | Security → Code scanning |
 
 > ⬜ **待补截图**：`docs/screenshots/ci-green.png`、`bandit.png`、`pip-audit.png`
-> （push 到自己的仓库后按上表位置截图）
+> （push 到自己的仓库后按上表位置截图；图片放进 `docs/screenshots/` 后重新生成 HTML，会自动嵌入）
+
+![CI 流水线：三个 job 全绿](screenshots/ci-green.png)
+
+![Bandit（SAST）报告](screenshots/bandit.png)
+
+![pip-audit（SCA）报告](screenshots/pip-audit.png)
 
 ---
 
@@ -305,6 +311,8 @@ uid=1(daemon) gid=1(daemon) groups=1(daemon)
 
 > ⬜ **待补截图**：`docs/screenshots/cve-exploit.png`
 > （漏洞环境中 `curl` 返回 `/etc/passwd` 内容 + `id` 命令执行结果）
+
+![漏洞环境复现：路径穿越读出 /etc/passwd 与命令执行](screenshots/cve-exploit.png)
 
 ### 4.3 根因分析
 
@@ -391,6 +399,8 @@ RESULT: fix verified -- all checks passed.
 
 > ⬜ **待补截图**：`docs/screenshots/cve-fixed.png`
 > （修复后同一命令返回 404，以及 `verify-fix` 的 PASS 汇总）
+
+![修复验证：同一请求返回 404，verify-fix 全部 PASS](screenshots/cve-fixed.png)
 
 ### 4.6 纵深防御建议
 
