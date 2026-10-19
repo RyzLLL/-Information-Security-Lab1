@@ -75,7 +75,7 @@ push 之后去 `https://github.com/<你>/lab1-secure-api/actions`：
 
 | 要截的图 | 怎么截 | 存成 |
 |---|---|---|
-| 三个 job 全绿 | Actions → CI → 最近一次运行，截 job 列表 | `docs/screenshots/ci-green.png` |
+| 四个 job 全绿（test / lint / Bandit / pip-audit） | Actions → CI → 最近一次运行，截 job 列表 | `docs/screenshots/ci-green.png` |
 | Bandit 报告 | 点进 **SAST - Bandit** → 页面底部 **Summary** 里有报告文本 | `docs/screenshots/bandit.png` |
 | pip-audit 报告 | 点进 **SCA - pip-audit** → **Summary**（应显示 `No known vulnerabilities found`） | `docs/screenshots/pip-audit.png` |
 
