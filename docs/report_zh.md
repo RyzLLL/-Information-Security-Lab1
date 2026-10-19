@@ -117,7 +117,7 @@ WWW-Authenticate: Bearer error="missing_token"
 | 2 | `POST /auth/login`（alice） | 200，返回 900 秒有效的 JWT |
 | 3 | `GET /api/data`（无令牌） | **401** |
 | 4 | `GET /api/data`（伪造令牌） | **401** |
-| 5 | `GET /api/data`（正确令牌） | 200，`total=2` |
+| 5 | `GET /api/data`（正确令牌） | 200，返回帖子列表（`limit` 生效） |
 | 6 | `POST /api/posts` | 201 |
 | 7 | 登录框注入 `alice' OR '1'='1` | **401** |
 | 8 | 搜索参数注入 `' OR 1=1 --` | 200，`total=0`（被当作字面量） |

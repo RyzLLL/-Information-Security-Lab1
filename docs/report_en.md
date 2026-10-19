@@ -113,7 +113,7 @@ WWW-Authenticate: Bearer error="missing_token"
 | 2 | `POST /auth/login` (alice) | 200, 900-second JWT |
 | 3 | `GET /api/data` without token | **401** |
 | 4 | `GET /api/data` with a forged token | **401** |
-| 5 | `GET /api/data` with the real token | 200, `total=2` |
+| 5 | `GET /api/data` with the real token | 200, returns the feed (`limit` honoured) |
 | 6 | `POST /api/posts` | 201 |
 | 7 | login with `alice' OR '1'='1` | **401** |
 | 8 | search with `' OR 1=1 --` | 200, `total=0` (literal) |
