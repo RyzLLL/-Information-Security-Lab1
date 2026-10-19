@@ -114,9 +114,10 @@ docker run --rm hello-world
 
    看到 `Hello from Docker!` 就成了。
 
-> 装不上（比如公司机器禁虚拟化）就看备选方案：浏览器打开
-> <https://labs.play-with-docker.com>，新建一个实例，在那里执行阶段 4 的命令，
-> 只是仓库要 `git clone` 到实例里。
+> 装不上（比如 `wsl --install` 返回 403、DISM 被策略锁住、
+> 或者公司机器禁虚拟化）就走备选方案：
+> 浏览器打开 <https://labs.play-with-docker.com> 建临时实例，
+> 完整命令见 **[《用 Play with Docker 跑 CVE》](PWD.md)**。
 
 ---
 

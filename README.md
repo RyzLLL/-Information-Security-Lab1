@@ -20,6 +20,7 @@ SCA on every push, and paired with a reproducible real-world CVE
 | CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
+| No-Docker fallback | [`docs/PWD.md`](docs/PWD.md) — run the CVE on Play with Docker |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---

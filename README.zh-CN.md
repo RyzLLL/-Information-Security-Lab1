@@ -13,10 +13,11 @@
 | 认证 | bcrypt 口令哈希 + 短时效 HS256 JWT |
 | SAST | Bandit（并上传 SARIF 到代码扫描） |
 | SCA | pip-audit |
-| 测试 | 74 个 pytest 用例，含 SQLi / XSS 专项回归 |
+| 测试 | 77 个 pytest 用例，含 SQLi / XSS 专项回归 |
 | CVE | CVE-2021-41773 — Apache HTTP Server 2.4.49 路径穿越 → RCE |
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
 | 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
+| 无 Docker 方案 | [`docs/PWD.md`](docs/PWD.md) — 在 Play with Docker 上跑 CVE |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
