@@ -265,6 +265,7 @@ command returning `404` on the fixed build, and the `verify-fix` PASS summary.
 pytest                                   # 72 tests
 pytest tests/test_sqli_xss.py -v         # only the attack regressions
 pytest --cov=app --cov-report=term-missing
+python scripts/validate_manifests.py     # ci.yml + compose files vs their schemas
 ```
 
 ```
