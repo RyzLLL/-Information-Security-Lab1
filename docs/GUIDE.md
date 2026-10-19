@@ -121,6 +121,22 @@ docker run --rm hello-world
 
 ---
 
+### 方案 D：不装 Docker，直接在 GitHub 上跑
+
+仓库里有 `.github/workflows/cve-repro.yml`，**手动触发**即可在 GitHub 的 runner
+（自带 Docker）上完成整套复现 —— 不需要你本机装任何东西：
+
+1. push 仓库后打开 **Actions** → 左侧 **CVE reproduction (manual)** → **Run workflow**；
+2. 等约 3–5 分钟；
+3. 结果出现在两处：
+   * 这次运行的 **Summary** 页面（漏洞版与修复版的完整转录）；
+   * Artifacts 里的 `cve-evidence.zip`。
+
+这份转录带时间戳、可复跑，比本地手工截图更硬；报告里可以引用运行链接。
+（该工作流只手动触发，不会在 push 时自动执行，且 runner 用完即销毁。）
+
+---
+
 ## 阶段 4 — 启动漏洞环境并复现 CVE
 
 **✅ 已完成**：`cve/Dockerfile`、`cve/docker-compose.yml`、利用脚本、验证脚本。

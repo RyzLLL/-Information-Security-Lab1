@@ -71,8 +71,10 @@ def main() -> int:
     root = pathlib.Path(__file__).resolve().parent.parent
     status = 0
 
-    wf = load_yaml(root / ".github/workflows/ci.yml")
-    status |= validate(fetch(WF_SCHEMA), wf, ".github/workflows/ci.yml")
+    wf_schema = fetch(WF_SCHEMA)
+    for path in sorted((root / ".github/workflows").glob("*.yml")):
+        doc = load_yaml(path)
+        status |= validate(wf_schema, doc, str(path.relative_to(root)).replace("\\", "/"))
 
     compose_schema = fetch(COMPOSE_SCHEMA)
     for name in ("cve/docker-compose.yml", "cve/docker-compose.fixed.yml"):

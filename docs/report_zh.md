@@ -388,6 +388,9 @@ uid=1(daemon) gid=1(daemon) groups=1(daemon)
 > `--path-as-is` 是关键：不加它，curl 会先把 `/icons/.%2e/../` 归一化掉，
 > 请求根本不会离开文档根目录。
 
+> **本机装不上 Docker？** 同一套流程也可以在 GitHub runner 上跑：手动触发 `.github/workflows/cve-repro.yml`（Actions → *CVE reproduction (manual)* → *Run workflow*），两段转录会出现在该次运行的 **Summary** 和 `cve-evidence` artifact 里，带时间戳且可复跑。
+
+
 > ⬜ **待补截图**：`docs/screenshots/cve-exploit.png`
 > （漏洞环境中 `curl` 返回 `/etc/passwd` 内容 + `id` 命令执行结果）
 

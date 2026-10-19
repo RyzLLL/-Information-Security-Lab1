@@ -282,6 +282,10 @@ regression check.
 Screenshots to take: the `root:...` output on the vulnerable build, the same
 command returning `404` on the fixed build, and the `verify-fix` PASS summary.
 
+> **No local Docker?** `.github/workflows/cve-repro.yml` runs the same cycle on a
+> GitHub runner (manual trigger, ~4 minutes) and publishes both transcripts in the run
+> summary -- see "Option D" in [`docs/GUIDE.md`](docs/GUIDE.md).
+
 ![Exploit](docs/screenshots/cve-exploit.png)
 ![Fix verified](docs/screenshots/cve-fixed.png)
 

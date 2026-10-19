@@ -246,6 +246,8 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.s
 
 待补截图：漏洞环境 `/etc/passwd` + `id` 输出、修复后 404、`verify-fix` PASS 汇总。
 
+> **本机装不上 Docker？** `.github/workflows/cve-repro.yml` 可以在 GitHub runner 上跑同一套流程（手动触发，约 4 分钟），两段转录会出现在该次运行的 Summary 里 —— 见 [`docs/GUIDE.md`](docs/GUIDE.md) 的“方案 D”。
+
 ![Exploit](docs/screenshots/cve-exploit.png)
 ![Fix](docs/screenshots/cve-fixed.png)
 

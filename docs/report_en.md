@@ -375,6 +375,9 @@ uid=1(daemon) gid=1(daemon) groups=1(daemon)
 > `--path-as-is` matters: without it curl collapses `/icons/.%2e/../` on the
 > client and the request never leaves the document root.
 
+> **No local Docker?** The same cycle runs on a GitHub runner: trigger `.github/workflows/cve-repro.yml` manually (Actions → *CVE reproduction (manual)* → *Run workflow*). Both transcripts end up in the run's **Summary** and in the `cve-evidence` artifact, so the evidence is timestamped and reproducible.
+
+
 > ⬜ **Pending screenshot**: `docs/screenshots/cve-exploit.png`
 
 ![Vulnerable build: /etc/passwd disclosed and command execution](screenshots/cve-exploit.png)
