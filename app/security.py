@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 import threading
 import time
 from collections import deque
@@ -65,7 +66,7 @@ def create_access_token(user_id: int, username: str, role: str) -> tuple[str, in
         "iat": now,
         "nbf": now,
         "exp": now + timedelta(minutes=ttl),
-        "jti": __import__("secrets").token_hex(8),
+        "jti": secrets.token_hex(8),
     }
     token = jwt.encode(payload, cfg["SECRET_KEY"], algorithm=cfg["JWT_ALGORITHM"])
     return token, ttl * 60
