@@ -29,8 +29,11 @@ python run.py
 另开一个终端：
 
 ```powershell
-.\scripts\demo.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\demo.ps1
 ```
+
+> Windows PowerShell 默认执行策略是 Restricted，直接 `.\scripts\demo.ps1` 会报
+> “未数字签名”。上面这行只对本次进程放行；也可以先 `Set-ExecutionPolicy -Scope Process Bypass`。
 
 预期看到 9 个步骤全部 `[PASS]`，最后一行 `All steps finished.`。
 **截图** → 存成 `docs\screenshots\api-demo.png`（可选，但报告里好加分）。
@@ -125,7 +128,10 @@ docker run --rm hello-world
 
 ```powershell
 cd .\cve
-.\run-all.ps1                 # 加 -KeepRunning 可以在截图时让容器留着
+powershell -ExecutionPolicy Bypass -File .\run-all.ps1   # 加 -KeepRunning 可以在截图时让容器留着
+
+> 若提示“无法加载文件 … 未数字签名”，说明 PowerShell 执行策略是 Restricted（Windows PowerShell 默认）。两种解法：用 `powershell -ExecutionPolicy Bypass -File .\xxx.ps1`，或先执行一次 `Set-ExecutionPolicy -Scope Process Bypass`。
+
 ```
 
 它会依次：起漏洞版 → 打 → 关 → 起修复版 → 重放并断言失败 → 关，

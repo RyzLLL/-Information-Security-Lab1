@@ -86,6 +86,12 @@ function Try-Down([string]$file) {
     catch { Write-Host ("cleanup failed for {0}: {1}" -f $file, $_.Exception.Message) -ForegroundColor DarkYellow }
 }
 
+function Save-Text([string]$path, [string]$text) {
+    # Plain UTF-8 without BOM: PS 5.1's '>' redirection writes UTF-16, which
+    # looks like a binary blob in git and breaks grep.
+    [System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 $vulnUp = $false
 $fixedUp = $false
 $vulnHit = $false
@@ -102,9 +108,10 @@ try {
     # -----------------------------------------------------------------------
     Step "2/5  Exploit (path traversal + RCE)"
     $exploitOut = Join-Path $evidenceDir "vulnerable.txt"
-    & (Join-Path $here "exploit.ps1") -Target $target *> $exploitOut
-    Get-Content $exploitOut
-    $vulnHit = (Get-Content $exploitOut -Raw) -match "VULNERABLE: /etc/passwd was disclosed"
+    $exploitText = & (Join-Path $here "exploit.ps1") -Target $target *>&1 | Out-String
+    Save-Text $exploitOut $exploitText
+    Write-Host $exploitText
+    $vulnHit = $exploitText -match "VULNERABLE: /etc/passwd was disclosed"
 
     # -----------------------------------------------------------------------
     Step "3/5  Stop the vulnerable build"
@@ -121,12 +128,12 @@ try {
     # -----------------------------------------------------------------------
     Step "5/5  Replay the exploit and verify the fix"
     $fixedOut = Join-Path $evidenceDir "fixed.txt"
-    & (Join-Path $here "verify-fix.ps1") -Target $target *> $fixedOut
+    $fixedText = & (Join-Path $here "verify-fix.ps1") -Target $target *>&1 | Out-String
     $nativeExit = $LASTEXITCODE
-    Get-Content $fixedOut
+    Save-Text $fixedOut $fixedText
+    Write-Host $fixedText
     # Read the verdict out of the transcript as well, so a wrapper that swallows
     # the exit code cannot turn a failure into a pass.
-    $fixedText = Get-Content $fixedOut -Raw
     $verifyOk = $fixedText -match "RESULT: fix verified"
     Write-Host ("verify-fix.ps1 exit code: {0}" -f $nativeExit) -ForegroundColor DarkGray
 

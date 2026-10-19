@@ -119,6 +119,9 @@ WWW-Authenticate: Bearer error="missing_token"
 | 8 | search with `' OR 1=1 --` | 200, `total=0` (literal) |
 | 9 | stored XSS `<script>alert('XSS')</script>` | 201, returned as `&lt;script&gt;…` |
 
+> The full transcript (request bodies and complete responses, token redacted) is in [`docs/evidence/api-demo.txt`](evidence/api-demo.txt).
+
+
 ### 3.3 Security measures
 
 #### 3.3.1 SQL injection — parameter binding everywhere

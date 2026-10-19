@@ -1,0 +1,113 @@
+# Captured by scripts/demo.ps1 on 2026-10-19 against the local dev server.
+# The JWT is redacted: it was signed with an ephemeral development key that
+# died with the process, so it is not a usable credential.
+
+Target: http://127.0.0.1:5000
+
+==============================================================================
+[1] 1. Health check
+==============================================================================
+{
+    "service":  "lab1-secure-api",
+    "status":  "ok"
+}
+--> HTTP 200  [PASS]
+
+==============================================================================
+[2] 2. Login (alice) -> JWT
+==============================================================================
+{
+    "access_token":  "<JWT redacted -- dev key was ephemeral>",
+    "expires_in":  900,
+    "token_type":  "Bearer",
+    "user":  {
+                 "id":  1,
+                 "role":  "admin",
+                 "username":  "alice"
+             }
+}
+--> HTTP 200  [PASS]
+
+==============================================================================
+[3] 3. GET /api/data without a token (must be denied)
+==============================================================================
+--> HTTP 401  [PASS]
+
+==============================================================================
+[4] 4. GET /api/data with a forged token (must be denied)
+==============================================================================
+--> HTTP 401  [PASS]
+
+==============================================================================
+[5] 5. GET /api/data with a valid token
+==============================================================================
+{
+    "data":  [
+                 {
+                     "author":  "alice",
+                     "body":  "Passwords are hashed with bcrypt, sessions use short-lived JWTs.",
+                     "created_at":  "2026-10-19T07:57:23+00:00",
+                     "id":  2,
+                     "title":  "Security notes"
+                 },
+                 {
+                     "author":  "alice",
+                     "body":  "This feed is served by a Flask + SQLite backend.",
+                     "created_at":  "2026-10-19T07:57:23+00:00",
+                     "id":  1,
+                     "title":  "Welcome to the Lab 1 API"
+                 }
+             ],
+    "limit":  2,
+    "offset":  0,
+    "total":  2
+}
+--> HTTP 200  [PASS]
+
+==============================================================================
+[6] 6. POST /api/posts (own endpoint, authenticated)
+==============================================================================
+{
+    "message":  "Post created.",
+    "post":  {
+                 "author":  "alice",
+                 "body":  "Created by scripts/demo.ps1",
+                 "id":  3,
+                 "title":  "Demo post"
+             }
+}
+--> HTTP 201  [PASS]
+
+==============================================================================
+[7] 7. SQL injection in the login form (must not bypass auth)
+==============================================================================
+--> HTTP 401  [PASS]
+
+==============================================================================
+[8] 8. SQL injection in the search parameter (treated as literal text)
+==============================================================================
+{
+    "data":  [
+
+             ],
+    "limit":  50,
+    "offset":  0,
+    "total":  0
+}
+--> HTTP 200  [PASS]
+
+==============================================================================
+[9] 9. Stored XSS payload -> escaped in the response
+==============================================================================
+{
+    "message":  "Post created.",
+    "post":  {
+                 "author":  "alice",
+                 "body":  "\u0026lt;script\u0026gt;alert(\u0026#39;XSS\u0026#39;)\u0026lt;/script\u0026gt;",
+                 "id":  4,
+                 "title":  "XSS demo"
+             }
+}
+--> HTTP 201  [PASS]
+
+All steps finished. Take a screenshot of this transcript for the report.

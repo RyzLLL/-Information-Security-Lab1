@@ -91,7 +91,7 @@ carries assertions for the Collection Runner.
 
 ```powershell
 python run.py            # terminal 1
-.\scripts\demo.ps1       # terminal 2
+powershell -ExecutionPolicy Bypass -File .\scripts\demo.ps1   # terminal 2
 ```
 
 Responses follow one error shape:

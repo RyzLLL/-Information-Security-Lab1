@@ -70,7 +70,11 @@ transcripts to `cve/evidence/` so the report can quote real output:
 
 ```powershell
 cd cve
-.\run-all.ps1                 # add -KeepRunning to take screenshots afterwards
+powershell -ExecutionPolicy Bypass -File .\run-all.ps1   # add -KeepRunning to keep it running
+
+> Default Windows PowerShell refuses to run unsigned scripts; the line above bypasses
+> that for this one process. `Set-ExecutionPolicy -Scope Process Bypass` does the same.
+
 ```
 
 It exits 0 only when the vulnerable build *was* exploited **and** the fixed

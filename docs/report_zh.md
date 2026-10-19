@@ -123,6 +123,9 @@ WWW-Authenticate: Bearer error="missing_token"
 | 8 | 搜索参数注入 `' OR 1=1 --` | 200，`total=0`（被当作字面量） |
 | 9 | 存储型 XSS `<script>alert('XSS')</script>` | 201，响应中为 `&lt;script&gt;...` |
 
+> 完整转录（含请求体与完整响应，令牌已脱敏）见 [`docs/evidence/api-demo.txt`](evidence/api-demo.txt)。
+
+
 ### 3.3 安全措施实现
 
 #### 3.3.1 SQL 注入防护：全参数化

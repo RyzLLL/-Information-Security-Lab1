@@ -71,7 +71,7 @@ SQLi 尝试、XSS 尝试），输出可直接截图：
 
 ```powershell
 python run.py            # 终端 1
-.\scripts\demo.ps1       # 终端 2
+powershell -ExecutionPolicy Bypass -File .\scripts\demo.ps1   # 终端 2
 ```
 
 用 Postman 的话，导入 [`docs/postman_collection.json`](docs/postman_collection.json)：
