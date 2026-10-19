@@ -121,7 +121,18 @@ docker run --rm hello-world
 
 **✅ 已完成**：`cve/Dockerfile`、`cve/docker-compose.yml`、利用脚本、验证脚本。
 
-**👉 你来做**：
+**👉 你来做**——最省事的方式是一条命令跑完阶段 4 和阶段 5：
+
+```powershell
+cd .\cve
+.\run-all.ps1                 # 加 -KeepRunning 可以在截图时让容器留着
+```
+
+它会依次：起漏洞版 → 打 → 关 → 起修复版 → 重放并断言失败 → 关，
+把两份原始输出写到 `cve\evidence\`，最后打印 SUMMARY。
+**只有"漏洞版确实被打穿"且"修复版确实全部拒绝"时才 exit 0**，否则会明确告诉你哪一步不对。
+
+下面是等价的**手动**步骤，适合你一步步截图：
 
 ```powershell
 cd .\cve

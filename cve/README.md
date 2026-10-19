@@ -64,6 +64,21 @@ usual default configuration".
 
 ## 3. Launch
 
+**One command (recommended, Windows).** Runs the whole experiment — vulnerable
+build → exploit → teardown → patched build → verify → teardown — and writes the
+transcripts to `cve/evidence/` so the report can quote real output:
+
+```powershell
+cd cve
+.\run-all.ps1                 # add -KeepRunning to take screenshots afterwards
+```
+
+It exits 0 only when the vulnerable build *was* exploited **and** the fixed
+build rejected every variant; if the exploit does not reproduce it says so and
+exits 1.
+
+Manual equivalent:
+
 ```bash
 cd cve
 docker compose up -d --build          # first build pulls ~55 MB
