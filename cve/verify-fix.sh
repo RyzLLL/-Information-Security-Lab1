@@ -1,56 +1,45 @@
 #!/usr/bin/env bash
-# Verify the fix for CVE-2021-41773 on the patched Apache 2.4.51 image.
-# Usage: ./verify-fix.sh [http://127.0.0.1:8080]
+# Verify the fix for CVE-2021-29441 on the patched Nacos 1.4.1 image.
+# Usage: ./verify-fix.sh [http://127.0.0.1:8848]
 set -uo pipefail
 
-TARGET="${1:-http://127.0.0.1:8080}"
+TARGET="${1:-http://127.0.0.1:8848}"
+UA="Nacos-Server"
+USERS="/nacos/v1/auth/users?pageNo=1&pageSize=9"
 failures=0
 section() { printf '\n%s\n%s\n%s\n' "==============================================================================" "$1" "=============================================================================="; }
-check() { # name ok detail
+check() {
   if [ "$2" = "1" ]; then printf '[PASS] %s\n' "$1"; else printf '[FAIL] %s -- %s\n' "$1" "$3"; failures=$((failures + 1)); fi
 }
 
-section "1. Regression check: GET /"
-code=$(curl -s -o /dev/null -w '%{http_code}' "$TARGET/")
+section "1. Regression check: GET /nacos/"
+code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$TARGET/nacos/")
 [ "$code" = "200" ] && ok=1 || ok=0
-check "home page still returns 200" "$ok" "got HTTP $code"
+check "console still returns 200" "$ok" "got HTTP $code"
 
-section "2. Path traversal must fail"
-TRAVERSAL="$TARGET/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
-status=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$TRAVERSAL")
-body=$(curl -s --path-as-is "$TRAVERSAL")
-echo "curl --path-as-is \"$TRAVERSAL\" -> HTTP $status"
-# Apache 2.4.51 rejects the un-normalisable path with 400 during normalisation;
-# a hardened configuration may answer 403 or 404 instead. What matters is that
-# it is neither 200 nor a disclosure.
-case "$status" in
-  400|403|404) ok=1 ;;
-  *) ok=0 ;;
-esac
-check "traversal rejected with 400/403/404" "$ok" "got HTTP $status"
-echo "$body" | grep -qE 'root:[x*]?:0:0:' && ok=0 || ok=1
-check "no /etc/passwd content in the body" "$ok" "file was disclosed"
+section "2. Bypass must fail: GET with 'User-Agent: $UA'"
+status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "User-Agent: $UA" "$TARGET$USERS")
+body=$(curl -s --max-time 10 -H "User-Agent: $UA" "$TARGET$USERS")
+echo "GET $USERS -> HTTP $status"
+echo "$body"
+[ "$status" = "403" ] && ok=1 || ok=0
+check "returns 403 instead of 200" "$ok" "got HTTP $status"
+echo "$body" | grep -q '"pageItems"' && ok=0 || ok=1
+check "no user table in the body" "$ok" "user table was disclosed"
 
-section "3. CGI traversal must not execute anything"
-RCE_URL="$TARGET/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh"
-rce_status=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is --data "echo;id" "$RCE_URL")
-rce=$(curl -s --path-as-is --data "echo;id" "$RCE_URL")
-echo "POST $RCE_URL -> HTTP $rce_status"
-echo "$rce" | grep -qE 'uid=[0-9]+' && ok=0 || ok=1
-check "no uid= in the response" "$ok" "command was executed"
+section "3. Creating an account must fail"
+new_user="attacker$RANDOM"
+created=$(curl -s --max-time 10 -X POST -H "User-Agent: $UA" \
+  "$TARGET/nacos/v1/auth/users?username=$new_user&password=Passw0rd123")
+echo "POST /nacos/v1/auth/users?username=$new_user -> $created"
+echo "$created" | grep -q "create user ok" && ok=0 || ok=1
+check "no 'create user ok'" "$ok" "account was created"
 
-section "4. Extra traversal variants"
-for v in \
-  "/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname" \
-  "/cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh" \
-  "/.%2e/.%2e/.%2e/.%2e/etc/passwd" \
-  "/icons/..%2f..%2f..%2f..%2fetc%2fpasswd" ; do
-  s=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$TARGET$v")
-  b=$(curl -s --path-as-is "$TARGET$v")
-  if echo "$b" | grep -qE 'root:[x*]?:0:0:'; then leak="  <-- LEAK"; ok=0; else leak=""; ok=1; fi
-  printf '  %-55s HTTP %s%s\n' "$v" "$s" "$leak"
-  check "no leak for $v" "$ok" "file content returned"
-done
+section "4. Authentication is still enabled"
+plain=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$TARGET$USERS")
+echo "GET $USERS (no credentials) -> HTTP $plain"
+[ "$plain" = "403" ] && ok=1 || ok=0
+check "anonymous access still refused" "$ok" "got HTTP $plain"
 
 echo
 if [ "$failures" -eq 0 ]; then

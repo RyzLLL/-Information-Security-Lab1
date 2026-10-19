@@ -3,7 +3,7 @@
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 
 一个刻意做完整的小型 Flask API：按安全评审的标准实现，接上每次 push 自动跑 SAST/SCA
-的 CI，并配一个可复现的真实漏洞（**CVE-2021-41773**）——复现、分析根因、修复、验证。
+的 CI，并配一个可复现的真实漏洞（**CVE-2021-29441**）——复现、分析根因、修复、验证。
 
 > 仓库地址 `OWNER/REPO` 请替换成你自己的。
 
@@ -14,10 +14,9 @@
 | SAST | Bandit（并上传 SARIF 到代码扫描） |
 | SCA | pip-audit |
 | 测试 | 84 个 pytest 用例，含 SQLi / XSS 专项回归 |
-| CVE | CVE-2021-41773 — Apache HTTP Server 2.4.49 路径穿越 → RCE |
+| CVE | CVE-2021-29441 — Nacos < 1.4.1 认证绕过（伪造 User-Agent） |
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
 | 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
-| 无 Docker 方案 | [`docs/PWD.md`](docs/PWD.md) — 在 Play with Docker 上跑 CVE |
 | 提交清单 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
@@ -209,31 +208,44 @@ pip-audit -r requirements.txt --strict --desc
 
 ---
 
-## 4. CVE-2021-41773
+## 4. CVE-2021-29441
 
-完整分析、命令与纵深防御建议见 **[`cve/README.md`](cve/README.md)**。
+完整的根因分析、命令与纵深防御建议见 **[`cve/README.md`](cve/README.md)**。
 
-**是什么**：Apache HTTP Server 2.4.49 重写了 URI 规范化（`server/request.c` 的
-`ap_normalize_path()`）。它判断某段是否 `.`/`..` 时，字符**还是百分号编码态**，
-之后才把 `%2e` 解码成 `.`。于是 `.%2e` 不被当作穿越段，解码后却变成真正的 `..`；
-`ap_core_translate()` 又未校验映射结果是否仍在 `Alias` 目录内。结果：
-`GET /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd` 直接读走口令文件；
-开启 `mod_cgi` 时同一手法可落到 `/bin/sh` 执行命令。CWE-22，CVSS 3.1 **7.5**
-（RCE 变体 CVE-2021-42013 为 9.8），2021-11-03 进入 CISA KEV。
+**是什么**：Nacos < 1.4.1 在**开启认证**的情况下，所有请求都要过 `AuthFilter`；
+该过滤器对 `User-Agent: Nacos-Server` 的请求直接短路放行，理由是"只有 Nacos 服务器会发这个头"。
+请求头是攻击者可控的数据，这个假设本身就是漏洞：CWE-290（认证绕过），CVSS 3.1 **8.6**。
+短路跳过的是**全部**授权，于是 `/nacos/v1/auth/users` 可达——用户表和 bcrypt 哈希可读，
+还能**直接创建管理员**，进而拿到完整控制台。
 
-**复现**（漏洞镜像，8080 端口）：
+> Vulhub 的镜像默认 `nacos.core.auth.enabled=false`，认证关着的时候谁都能访问、
+> 这个头毫无意义。所以本仓库的镜像把认证**打开**，这正是 advisory 写明的前提。
+
+**复现**（漏洞镜像，8848 端口）：
 
 ```bash
 cd cve && docker compose up -d --build
 powershell -ExecutionPolicy Bypass -File .\exploit.ps1     # 或 ./exploit.sh
 ```
 
-**修复**——只改一行版本，配置完全不动，从而只隔离一个变量：
+```
+基线（不带请求头）              -> 403  "unknown user!"
+绕过（User-Agent: Nacos-Server） -> 200  用户表 + 哈希
+影响（POST 创建用户）           -> 200  {"message":"create user ok!"}
+```
+
+**修复**——两项设置，而且**光升版本不够**：
 
 ```diff
--FROM vulhub/httpd:2.4.49
-+FROM httpd:2.4.51
+-  NACOS_VERSION=1.4.0
++  NACOS_VERSION=1.4.1
++  nacos.core.auth.enable.userAgentAuthWhite=false
++  nacos.core.auth.server.identity.key=lab1server
++  nacos.core.auth.server.identity.value=lab1secret
 ```
+
+1.4.1 只是**引入**了 `userAgentAuthWhite` 开关，而且默认是 `true`，
+所以原版 1.4.1 依然能被绕过（我们实测过）；后两行是让"关掉白名单"的集群还能正常工作的必要条件。
 
 ```bash
 docker compose down
@@ -241,16 +253,10 @@ docker compose -f docker-compose.fixed.yml up -d --build
 powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.sh
 ```
 
-`verify-fix` 会重放**整个绕过家族**（双重编码、`%2f`、`/.%2e/`），断言返回 400/403/404
-而不是文件内容，并检查首页仍正常返回（回归）。只修公告里那一个字符串等于做黑名单，
-2.4.50 的教训就在眼前。
+`verify-fix` 会重放两条请求、断言返回 403 且没有用户表，并额外检查两件容易被忽略的事：
+**不能创建账号**，以及**认证仍然是开着的**（把认证关掉冒充修复属于让功能倒退）。
 
-待补截图：漏洞环境 `/etc/passwd` + `id` 输出、修复后 400、`verify-fix` PASS 汇总。
-
-> **本机装不上 Docker？** `.github/workflows/cve-repro.yml` 可以在 GitHub runner 上跑同一套流程（手动触发，约 4 分钟），两段转录会出现在该次运行的 Summary 里 —— 见 [`docs/GUIDE.md`](docs/GUIDE.md) 的“方案 D”。
-
-![Exploit](docs/screenshots/cve-exploit.png)
-![Fix](docs/screenshots/cve-fixed.png)
+截图：漏洞版的泄露/建号输出，修复版的 `RESULT: fix verified` 汇总。
 
 ---
 

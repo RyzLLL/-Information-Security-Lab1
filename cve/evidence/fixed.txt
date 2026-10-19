@@ -1,32 +1,29 @@
 
 ==============================================================================
-1. Regression check: GET /
+1. Regression check: GET /nacos/
 ==============================================================================
-[PASS] home page still returns 200
+[PASS] console still returns 200
 
 ==============================================================================
-2. Path traversal must fail
+2. Bypass must fail: GET with 'User-Agent: Nacos-Server'
 ==============================================================================
-curl --path-as-is "http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd" -> HTTP 400
-[PASS] traversal rejected with 400/403/404
-[PASS] no /etc/passwd content in the body
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 -> HTTP 403
+{"timestamp":"2026-10-19T10:11:43.726+0000","status":403,"error":"Forbidden","message":"unknown user!","path":"/nacos/v
+1/auth/users"}
+[PASS] returns 403 instead of 200
+[PASS] no user table in the body
 
 ==============================================================================
-3. CGI traversal must not execute anything
+3. Creating an account must fail
 ==============================================================================
-POST http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh -> HTTP 400
-[PASS] no uid= in the response
+POST /nacos/v1/auth/users?username=attacker239 -> {"timestamp":"2026-10-19T10:11:43.821+0000","status":403,"error":"For
+bidden","message":"unknown user!","path":"/nacos/v1/auth/users"}
+[PASS] no 'create user ok'
 
 ==============================================================================
-4. Extra traversal variants
+4. Authentication is still enabled
 ==============================================================================
-  /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname           HTTP 400
-[PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
-  /cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh             HTTP 400
-[PASS] no leak for /cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh
-  /.%2e/.%2e/.%2e/.%2e/etc/passwd                         HTTP 400
-[PASS] no leak for /.%2e/.%2e/.%2e/.%2e/etc/passwd
-  /icons/..%2f..%2f..%2f..%2fetc%2fpasswd                 HTTP 404
-[PASS] no leak for /icons/..%2f..%2f..%2f..%2fetc%2fpasswd
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 (no credentials) -> HTTP 403
+[PASS] anonymous access still refused
 
 RESULT: fix verified -- all checks passed.

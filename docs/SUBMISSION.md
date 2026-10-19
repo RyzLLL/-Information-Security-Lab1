@@ -43,8 +43,8 @@ https://github.com/<OWNER>/<REPO>/actions
 手册要求"如果改了配置文件或源码，这些文件必须附上"：
 
 ```
-cve/Dockerfile                 # 漏洞版（Apache 2.4.49）
-cve/Dockerfile.fixed           # 修复版（Apache 2.4.51，只改 FROM，配置不动）
+cve/Dockerfile                 # 漏洞版（Nacos 1.4.0，开启认证）
+cve/Dockerfile.fixed           # 修复版（1.4.1 + 关白名单 + server identity）
 cve/docker-compose.yml
 cve/docker-compose.fixed.yml
 ```

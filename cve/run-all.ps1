@@ -1,22 +1,22 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    One-command CVE-2021-41773 lab run: vulnerable -> exploit -> fixed -> verify.
+    One-command CVE-2021-29441 lab run: vulnerable -> exploit -> fixed -> verify.
 
 .DESCRIPTION
     Runs the whole second half of the assignment and writes the transcripts to
     cve/evidence/, so the report can quote real output instead of a retyped
     summary.
 
-      1. build + start the vulnerable 2.4.49 image
+      1. build + start the vulnerable Nacos 1.4.0 image
       2. exploit it (path traversal + RCE)                  -> evidence/vulnerable.txt
       3. tear it down
-      4. build + start the patched 2.4.51 image (same config)
+      4. build + start the patched Nacos 1.4.1 image (same auth, whitelist off)
       5. replay the exploit and assert it fails             -> evidence/fixed.txt
       6. tear it down and print a summary
 
 .PARAMETER Port
-    Host port to publish (default 8080).
+    Host port to publish (default 8848).
 
 .PARAMETER KeepRunning
     Do not tear the containers down at the end (useful for taking screenshots).
@@ -27,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-    [int]$Port = 8080,
+    [int]$Port = 8848,
     [switch]$KeepRunning
 )
 
@@ -55,15 +55,16 @@ function Assert-Docker {
     }
 }
 
-function Wait-Http([string]$url, [int]$seconds = 90) {
+function Wait-Http([string]$url, [int]$seconds = 180) {
+    # Nacos is a Spring Boot application: give it up to three minutes to boot.
     $deadline = (Get-Date).AddSeconds($seconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            $r = Invoke-WebRequest -Uri "$url/" -UseBasicParsing -TimeoutSec 3
+            $r = Invoke-WebRequest -Uri "$url/nacos/" -UseBasicParsing -TimeoutSec 3
             if ($r.StatusCode -eq 200) { return $true }
         }
         catch { }
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 3
     }
     return $false
 }
@@ -99,10 +100,10 @@ $verifyOk = $false
 
 try {
     # -----------------------------------------------------------------------
-    Step "1/5  Vulnerable Apache 2.4.49 -- build and start"
+    Step "1/5  Vulnerable Nacos 1.4.0 (auth enabled) -- build and start"
     Compose $vulnCompose @("up", "-d", "--build")
     $vulnUp = $true
-    if (-not (Wait-Http $target)) { throw "The container did not answer on $target within 90s." }
+    if (-not (Wait-Http $target)) { throw "The container did not answer on $target within 180s." }
     Write-Host "service is up" -ForegroundColor Green
 
     # -----------------------------------------------------------------------
@@ -111,7 +112,7 @@ try {
     $exploitText = & (Join-Path $here "exploit.ps1") -Target $target *>&1 | Out-String
     Save-Text $exploitOut $exploitText
     Write-Host $exploitText
-    $vulnHit = $exploitText -match "VULNERABLE: /etc/passwd was disclosed"
+    $vulnHit = $exploitText -match "VULNERABLE: authentication bypassed"
 
     # -----------------------------------------------------------------------
     Step "3/5  Stop the vulnerable build"
@@ -119,7 +120,7 @@ try {
     $vulnUp = $false
 
     # -----------------------------------------------------------------------
-    Step "4/5  Patched Apache 2.4.51 -- build and start (same configuration)"
+    Step "4/5  Patched Nacos 1.4.1 (userAgentAuthWhite=false) -- build and start"
     Compose $fixedCompose @("up", "-d", "--build")
     $fixedUp = $true
     if (-not (Wait-Http $target)) { throw "The patched container did not answer on $target within 90s." }
@@ -143,7 +144,7 @@ try {
     }
 }
 finally {
-    # Never leave a deliberately vulnerable Apache listening if anything threw.
+    # Never leave a deliberately vulnerable Nacos listening if anything threw.
     if (-not $KeepRunning) {
         if ($vulnUp) { Try-Down $vulnCompose }
         if ($fixedUp) { Try-Down $fixedCompose }

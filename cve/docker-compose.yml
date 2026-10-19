@@ -1,10 +1,13 @@
-# Vulnerable environment: Apache HTTP Server 2.4.49 (CVE-2021-41773)
+# Vulnerable environment: Nacos 1.4.0 with authentication enabled (CVE-2021-29441)
 services:
-  apache:
-    build: .
-    image: lab1-httpd-2.4.49-vulnerable
-    container_name: lab1-cve-41773-vulnerable
+  nacos:
+    build:
+      context: .
+      args:
+        NACOS_VERSION: "1.4.0"
+    image: lab1-nacos-1.4.0-vulnerable
+    container_name: lab1-cve-29441-vulnerable
     platform: linux/amd64
     ports:
-      - "8080:80"
+      - "8848:8848"
     restart: "no"

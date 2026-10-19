@@ -1,12 +1,15 @@
-# Fixed environment: Apache HTTP Server 2.4.51 (CVE-2021-41773 patched)
+# Patched environment: Nacos 1.4.1 with authentication enabled (CVE-2021-29441)
+# Same image build, same configuration, same auth switch -- only NACOS_VERSION differs.
 services:
-  apache:
+  nacos:
     build:
       context: .
       dockerfile: Dockerfile.fixed
-    image: lab1-httpd-2.4.51-fixed
-    container_name: lab1-cve-41773-fixed
+      args:
+        NACOS_VERSION: "1.4.1"
+    image: lab1-nacos-1.4.1-fixed
+    container_name: lab1-cve-29441-fixed
     platform: linux/amd64
     ports:
-      - "8080:80"
+      - "8848:8848"
     restart: "no"
