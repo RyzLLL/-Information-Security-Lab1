@@ -209,7 +209,7 @@ RESULT: fix verified -- all checks passed.
 ```
 
 **截图** → `docs/screenshots/cve-fixed.png`
-（要包含 `HTTP 404` 和 `RESULT: fix verified`）
+（要包含 `HTTP 400` 和 `RESULT: fix verified`）
 
 顺手对比一下两条命令：
 
@@ -272,7 +272,7 @@ python scripts\build_report.py --pdf
 - [ ] 2 分 — CI 有 Bandit + pip-audit，且截图能看到报告
 - [ ] 2 分 — `root:x:0:0` 截图（CVE 复现成功）
 - [ ] 1 分 — 报告 4.3 节根因分析（解码/判断顺序、配置放大、2.4.50 为何不够）
-- [ ] 1 分 — 修复后 404 + 回归通过截图
+- [ ] 1 分 — 修复后 400 + 回归通过截图
 
 ## 常见问题
 

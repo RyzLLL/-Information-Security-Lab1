@@ -241,11 +241,11 @@ docker compose -f docker-compose.fixed.yml up -d --build
 powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.sh
 ```
 
-`verify-fix` 会重放**整个绕过家族**（双重编码、`%2f`、`/.%2e/`），断言返回 404/403
+`verify-fix` 会重放**整个绕过家族**（双重编码、`%2f`、`/.%2e/`），断言返回 400/403/404
 而不是文件内容，并检查首页仍正常返回（回归）。只修公告里那一个字符串等于做黑名单，
 2.4.50 的教训就在眼前。
 
-待补截图：漏洞环境 `/etc/passwd` + `id` 输出、修复后 404、`verify-fix` PASS 汇总。
+待补截图：漏洞环境 `/etc/passwd` + `id` 输出、修复后 400、`verify-fix` PASS 汇总。
 
 > **本机装不上 Docker？** `.github/workflows/cve-repro.yml` 可以在 GitHub runner 上跑同一套流程（手动触发，约 4 分钟），两段转录会出现在该次运行的 Summary 里 —— 见 [`docs/GUIDE.md`](docs/GUIDE.md) 的“方案 D”。
 

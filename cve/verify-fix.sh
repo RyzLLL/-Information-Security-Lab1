@@ -20,8 +20,14 @@ TRAVERSAL="$TARGET/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
 status=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$TRAVERSAL")
 body=$(curl -s --path-as-is "$TRAVERSAL")
 echo "curl --path-as-is \"$TRAVERSAL\" -> HTTP $status"
-[ "$status" = "404" ] || [ "$status" = "403" ] && ok=1 || ok=0
-check "traversal answered with 404/403" "$ok" "got HTTP $status"
+# Apache 2.4.51 rejects the un-normalisable path with 400 during normalisation;
+# a hardened configuration may answer 403 or 404 instead. What matters is that
+# it is neither 200 nor a disclosure.
+case "$status" in
+  400|403|404) ok=1 ;;
+  *) ok=0 ;;
+esac
+check "traversal rejected with 400/403/404" "$ok" "got HTTP $status"
 echo "$body" | grep -qE 'root:[x*]?:0:0:' && ok=0 || ok=1
 check "no /etc/passwd content in the body" "$ok" "file was disclosed"
 

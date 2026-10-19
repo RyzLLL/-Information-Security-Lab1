@@ -44,7 +44,7 @@ $traversal = "$Target/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
 $status = & $curl -s -o NUL -w "%{http_code}" --path-as-is "$traversal"
 $body = & $curl -s --path-as-is "$traversal"
 Write-Host "curl --path-as-is `"$traversal`" -> HTTP $status"
-Check "traversal answered with 404/403" ($status -in @("404", "403")) "got HTTP $status"
+Check "traversal rejected with 400/403/404" ($status -in @("400", "403", "404")) "got HTTP $status"
 Check "no /etc/passwd content in the body" (-not ($body -match "root:[x*]?:0:0:")) "file was disclosed"
 
 # --- 3. no command execution ------------------------------------------------

@@ -276,12 +276,12 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # or ./verify-fix.sh
 ```
 
 `verify-fix` replays the empty-fix family as well (double encoding, `%2f`,
-`/.%2e/`), asserts `404`/`403` instead of disclosure, and checks that the
+`/.%2e/`), asserts `400`/`403`/`404` instead of disclosure, and checks that the
 application still serves its normal page — i.e. it is a patch check *and* a
 regression check.
 
 Screenshots to take: the `root:...` output on the vulnerable build, the same
-command returning `404` on the fixed build, and the `verify-fix` PASS summary.
+command returning `400` on the fixed build, and the `verify-fix` PASS summary.
 
 > **No local Docker?** `.github/workflows/cve-repro.yml` runs the same cycle on a
 > GitHub runner (manual trigger, ~4 minutes) and publishes both transcripts in the run

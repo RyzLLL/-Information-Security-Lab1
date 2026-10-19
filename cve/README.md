@@ -237,7 +237,7 @@ Expected:
 
 ```
 [PASS] home page still returns 200
-[PASS] traversal answered with 404/403
+[PASS] traversal rejected with 400/403/404
 [PASS] no /etc/passwd content in the body
 [PASS] no uid= in the response
 [PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname

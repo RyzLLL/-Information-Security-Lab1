@@ -61,7 +61,7 @@ docker compose down
 echo 'done.'
 ```
 
-预期：第 2、3 步打印 `root:x:0:0:...` 和 `uid=...`；第 5 步全部 `404`，首页仍是 `It works!`。
+预期：第 2、3 步打印 `root:x:0:0:...` 和 `uid=...`；第 5 步全部 `400`（部分变体 404），首页仍是 `It works!`。
 
 ## 1. 起漏洞环境（Apache 2.4.49）
 
@@ -116,7 +116,7 @@ docker compose up -d --build
 ## 4. 验证修复（截图点）
 
 ```bash
-# 4.1 同样的穿越应当返回 404，且没有文件内容
+# 4.1 同样的穿越应当返回 400/403/404，且没有文件内容
 curl -s -o /dev/null -w 'traversal -> %{http_code}\n' --path-as-is \
   'http://127.0.0.1:8080/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd'
 
@@ -138,9 +138,9 @@ done
 curl -s http://127.0.0.1:8080/ | head -1
 ```
 
-预期：所有穿越都 `404`，`It works!` 仍然正常。
+预期：所有穿越都是 4xx（2.4.51 多为 `400`），`It works!` 仍然正常。
 
-**截图 2**：404 的结果 + `It works!`。
+**截图 2**：4xx 的结果 + `It works!`。
 
 ## 5. 收尾
 

