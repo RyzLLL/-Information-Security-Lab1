@@ -37,4 +37,7 @@ docs/preview-*.png
 .idea/httpRequests/
 .idea/dictionaries/
 .idea/usage.statistics.xml
+.idea/dataSources*.xml
+.idea/dataSources/
+.idea/inspectionProfiles/
 .DS_Store
