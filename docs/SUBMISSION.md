@@ -55,7 +55,7 @@ cve/docker-compose.fixed.yml
 
 - [ ] `docs/report_zh.pdf`（中文）
 - [ ] `docs/report_en.pdf`（英文）
-- [ ] 首页已填：**变体号**、**姓名**、**HDU 号**
+- [x] 首页已填：**姓名**、**HDU 号**
 - [ ] 已把 4.2 / 4.5 节的"预期结果"替换成你的**实际输出**
 - [ ] 已把 `docs/screenshots/` 的 5 张图放好并重新生成 PDF
 

@@ -203,28 +203,23 @@ docker compose -f docker-compose.fixed.yml down
 
 ---
 
-## 阶段 6 — 补报告首页与截图清单
+## 阶段 6 — 报告与截图（已完成）
 
-**👉 你来做**：
+首页信息、5 张截图、PDF 都已经做好，**不需要再改**：
 
-1. 打开 `docs/report_zh.md` 与 `docs/report_en.md`，把首页的
-   `<填写你的变体号>`、`<姓 名>`、`<填写学号>`、`RyzLLL/-Information-Security-Lab1` 换成真实信息。
-2. 把 5 张截图放进 `docs/screenshots/`，文件名照 `docs/screenshots/README.md`。
-3. 把 `docs/report_zh.md` 第 4.2 / 4.5 节里标了 ⬜ 的地方，换成你自己的实际输出
-   （如果你跑出来的和预期不同，以你的实际输出为准——报告写的是你做过的事）。
-4. 报告要求 PDF。不用装 pandoc / Word，一条命令直接出 PDF：
+| 项 | 状态 |
+|---|---|
+| 封面 | 姓名「戎彦哲」、学号 23320120 已填（变体号一栏已按要求删除） |
+| 截图 | `docs/screenshots/` 下 5 张齐全，PDF 内已嵌入，无虚线框 |
+| PDF | `docs/report_zh.pdf` / `report_en.pdf` |
+
+只有改了 Markdown 之后才需要重新生成：
 
 ```powershell
 python scripts\build_report.py --pdf
 ```
 
-   生成 `docs/report_zh.pdf` / `docs/report_en.pdf`（A4、首页独立封面、表格与代码块带样式，
-   当前各 13 页）。脚本会自动找 Edge 或 Chrome 做无头打印；找不到浏览器时会提示你
-   手动打开 HTML 按 `Ctrl+P`。
-
-   > 截图还没放进去时，PDF 里第 3.5 / 4.2 / 4.5 节会显示红色虚线框并写明缺哪个文件——
-   > 这是故意的，提醒你别交一份没图的报告。图片放进 `docs/screenshots/` 后
-   > 重新跑一次脚本，图会自动嵌入。
+> 脚本自动找 Edge/Chrome 无头打印；找不到浏览器时会提示你手动打开 HTML 按 `Ctrl+P`。
 
 ---
 

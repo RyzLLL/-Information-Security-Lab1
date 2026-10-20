@@ -2,9 +2,8 @@
 
 > **Work no.**: 1<br>
 > **Title**: Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis<br>
-> **Variant**: `<your variant number>`<br>
-> **Name**: `<Surname Name>`<br>
-> **HDU number**: `<student id>`<br>
+> **Name**: Yanzhe RONG (戎彦哲)<br>
+> **HDU number**: 23320120<br>
 > **Date**: 2026-10-19<br>
 > **Repository**: `https://github.com/RyzLLL/-Information-Security-Lab1`<br>
 > **Pipeline**: `https://github.com/RyzLLL/-Information-Security-Lab1/actions`
@@ -641,4 +640,4 @@ control — that reappear across languages and frameworks.
 - [x] `docs/screenshots/pip-audit.png`
 - [x] `docs/screenshots/cve-exploit.png`
 - [x] `docs/screenshots/cve-fixed.png`
-- [ ] Fill in the title page (work no., title, variant, name, HDU number)
+- [x] Title page filled in (work no., title, name, HDU number)

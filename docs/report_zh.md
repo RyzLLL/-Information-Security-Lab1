@@ -2,9 +2,8 @@
 
 > **实验编号**：Work 1（实验 1）<br>
 > **实验题目**：Secure REST API Development with CI/CD and Real CVE Vulnerability Analysis<br>
-> **变体号**：`<填写你的变体号>`<br>
-> **姓名**：`<姓 名>`<br>
-> **HDU 号（学号）**：`<填写学号>`<br>
+> **姓名**：戎彦哲<br>
+> **HDU 号（学号）**：23320120<br>
 > **日期**：2026-10-19<br>
 > **仓库地址**：`https://github.com/RyzLLL/-Information-Security-Lab1`<br>
 > **CI 流水线地址**：`https://github.com/RyzLLL/-Information-Security-Lab1/actions`
@@ -624,4 +623,4 @@ server identity，连控制台都会被锁死。
 - [x] `docs/screenshots/pip-audit.png` — pip-audit Job Summary
 - [x] `docs/screenshots/cve-exploit.png` — 漏洞环境 403 基线 + 200 泄露 + `create user ok!`
 - [x] `docs/screenshots/cve-fixed.png` — 修复后 403 + verify-fix PASS
-- [ ] 首页按手册要求补齐：编号、题目、变体号、姓名、HDU 号
+- [x] 首页已填：编号、题目、姓名、HDU 号
