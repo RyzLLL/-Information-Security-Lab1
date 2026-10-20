@@ -213,15 +213,14 @@ merely hide a breakage.
 
 ### Screenshots
 
-> Replace these placeholders with your own runs after pushing.
+Captured from the real runs (see [`docs/screenshots/README.md`](docs/screenshots/README.md)
+for how each one was produced):
 
-| What | Where to click |
+| Image | What it shows |
 |---|---|
-| Green pipeline | *Actions* → *CI* → latest run |
-| Lint | *Actions* → *CI* → *Lint - ruff* |
-| Bandit report | *Actions* → *CI* → *SAST - Bandit* → *Summary* |
-| pip-audit report | *Actions* → *CI* → *SCA - pip-audit* → *Summary* |
-| Code scanning findings | *Security* → *Code scanning* |
+| `ci-green.png` | the GitHub run: 5/5 jobs green, `Success`, 28 s |
+| `bandit.png` | `No issues identified` (670 LOC) |
+| `pip-audit.png` | `No known vulnerabilities found` |
 
 ![CI run](docs/screenshots/ci-green.png)
 ![Bandit](docs/screenshots/bandit.png)
@@ -291,8 +290,14 @@ adds two checks a naive test would miss: no account can be created, and
 **authentication is still enabled** (a "fix" that turns auth off is a
 regression, not a fix).
 
-Screenshots to take: the leak/create output on the vulnerable build and the
-`RESULT: fix verified` summary on the patched one.
+Measured on the vulnerable build — 403 baseline, 200 with the spoofed header,
+then `create user ok!`:
+
+![Exploit: 403 baseline, 200 bypass with the user table, account created](docs/screenshots/cve-exploit.png)
+
+and on the patched build — every check `PASS`, console still reachable:
+
+![Fix verified: all checks passed](docs/screenshots/cve-fixed.png)
 
 ---
 

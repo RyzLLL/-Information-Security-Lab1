@@ -183,15 +183,13 @@ No known vulnerabilities found
 
 ### 截图
 
-> push 之后按上表位置截图，替换以下占位。
+均来自真实运行（每张图的生成方式见 [`docs/screenshots/README.md`](docs/screenshots/README.md)）：
 
-| 内容 | 位置 |
+| 图 | 内容 |
 |---|---|
-| 绿色流水线 | Actions → CI → 最近一次运行 |
-| Lint | Actions → CI → *Lint - ruff* |
-| Bandit 报告 | Actions → CI → *SAST - Bandit* → Summary |
-| pip-audit 报告 | Actions → CI → *SCA - pip-audit* → Summary |
-| 代码扫描 | Security → Code scanning |
+| `ci-green.png` | GitHub 运行页：5/5 job 全绿、`Success`、28 秒 |
+| `bandit.png` | `No issues identified`（670 行） |
+| `pip-audit.png` | `No known vulnerabilities found` |
 
 ![CI](docs/screenshots/ci-green.png)
 ![Bandit](docs/screenshots/bandit.png)
@@ -254,7 +252,13 @@ powershell -ExecutionPolicy Bypass -File .\verify-fix.ps1   # 或 ./verify-fix.s
 `verify-fix` 会重放两条请求、断言返回 403 且没有用户表，并额外检查两件容易被忽略的事：
 **不能创建账号**，以及**认证仍然是开着的**（把认证关掉冒充修复属于让功能倒退）。
 
-截图：漏洞版的泄露/建号输出，修复版的 `RESULT: fix verified` 汇总。
+效果如下（漏洞版：403 基线 → 伪造头 200 读出用户表 → `create user ok!`）：
+
+![漏洞复现：403 基线、200 绕过并读出用户表、创建管理员成功](docs/screenshots/cve-exploit.png)
+
+修复版：全部检查 `PASS`，控制台仍可访问：
+
+![修复验证：所有检查通过](docs/screenshots/cve-fixed.png)
 
 ---
 
