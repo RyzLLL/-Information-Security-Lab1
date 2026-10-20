@@ -11,13 +11,11 @@ SCA on every push, and paired with a reproducible real-world CVE
 |---|---|
 | Language / stack | Python 3.11+ / Flask 3.1 / SQLite |
 | Auth | bcrypt password hashes + short-lived HS256 JWT |
-| SAST | Bandit (plus SARIF upload to GitHub code scanning) |
+| SAST | Bandit (`-ll -ii`) |
 | SCA | pip-audit |
 | Tests | 84 pytest tests, incl. dedicated SQLi/XSS regression tests |
 | CVE target | CVE-2021-29441 — Nacos < 1.4.1 authentication bypass (spoofed User-Agent) |
 | Report | [`docs/report_en.md`](docs/report_en.md) · [`docs/report_zh.md`](docs/report_zh.md) |
-| Step-by-step guide | [`docs/GUIDE.md`](docs/GUIDE.md) (中文) |
-| Submission checklist | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
@@ -180,7 +178,7 @@ attacker key, `alg=none`, wrong scheme, deleted users and the rate limiter.
 |---|---|---|
 | `test` | pytest (3.11 + 3.12 matrix, coverage) | functional + security regression tests pass |
 | `lint` | ruff (pinned) | imports, unused names, obvious bugs |
-| `sast-bandit` | Bandit (`-ll -ii`) + SARIF upload | no medium/high static findings; results appear in *Security → Code scanning* |
+| `sast-bandit` | Bandit (`-ll -ii`) | no medium/high static findings; the report is attached as an artifact and written to the job summary |
 | `sca-pip-audit` | pip-audit (`--strict`) | no known vulnerabilities in the pinned dependencies |
 
 Both scanners also write their raw report into the GitHub **job summary**, so a

@@ -234,7 +234,7 @@ Coverage is **94%** (`pytest --cov=app`: 24 of 394 statements uncovered, mostly 
 |---|---|---|
 | `test` | pytest (3.11 / 3.12 matrix, coverage) | functional + security regressions |
 | `lint` | `ruff check` (pinned) | imports, unused names, obvious bugs |
-| `sast-bandit` | `bandit -r app -ll -ii` + SARIF upload | no medium/high static findings |
+| `sast-bandit` | `bandit -r app -ll -ii` | no medium/high static findings |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | no known vulnerable dependencies |
 
 Both scanners also write their raw report into the **job summary**, so a
@@ -295,7 +295,7 @@ old versions (Flask 3.1.2 / PyJWT 2.10.1) — green there too. The only thing
 that changed is the audit result.
 
 **Where to screenshot**: *Actions → CI → latest run*; the *SAST - Bandit* and
-*SCA - pip-audit* job summaries; *Security → Code scanning*.
+*SCA - pip-audit* job summaries.
 
 > All three are captured and embedded: `ci-green.png` is a real screenshot of
 > the GitHub run page, while `bandit.png` / `pip-audit.png` are the exact output

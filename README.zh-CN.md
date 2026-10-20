@@ -9,13 +9,11 @@
 |---|---|
 | 技术栈 | Python 3.11+ / Flask 3.1 / SQLite |
 | 认证 | bcrypt 口令哈希 + 短时效 HS256 JWT |
-| SAST | Bandit（并上传 SARIF 到代码扫描） |
+| SAST | Bandit（`-ll -ii`） |
 | SCA | pip-audit |
 | 测试 | 84 个 pytest 用例，含 SQLi / XSS 专项回归 |
 | CVE | CVE-2021-29441 — Nacos < 1.4.1 认证绕过（伪造 User-Agent） |
 | 报告 | [`docs/report_zh.md`](docs/report_zh.md) · [`docs/report_en.md`](docs/report_en.md) |
-| 分步指南 | [`docs/GUIDE.md`](docs/GUIDE.md) |
-| 提交清单 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) |
 | Postman | [`docs/postman_collection.json`](docs/postman_collection.json) |
 
 ---
@@ -153,7 +151,7 @@ SQLite 报错文本。
 |---|---|---|
 | `test` | pytest（3.11 / 3.12 矩阵 + 覆盖率） | 功能与安全回归 |
 | `lint` | `ruff check`（版本锁定） | 导入顺序、未使用名称、明显 bug |
-| `sast-bandit` | `bandit -r app -ll -ii` + SARIF 上传 | 静态发现中高危问题 |
+| `sast-bandit` | `bandit -r app -ll -ii` | 静态发现中高危问题，报告作为 artifact 与 job summary |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | 依赖已知漏洞 |
 
 两个扫描器都会把原始报告写进 **Job Summary**，截图里能直接看到工具输出。

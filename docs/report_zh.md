@@ -239,7 +239,7 @@ tests/test_sqli_xss.py    24 passed
 |---|---|---|
 | `test` | pytest（3.11 / 3.12 矩阵 + 覆盖率） | 功能与安全回归 |
 | `lint` | `ruff check`（版本锁定） | 导入顺序、未使用名称、明显 bug |
-| `sast-bandit` | `bandit -r app -ll -ii`，并输出 SARIF 上传代码扫描 | 静态发现中高危问题 |
+| `sast-bandit` | `bandit -r app -ll -ii` | 静态发现中高危问题 |
 | `sca-pip-audit` | `pip-audit -r requirements.txt --strict` | 依赖已知漏洞 |
 
 两个扫描器都会把原始报告写进 GitHub 的 **Job Summary**，因此截图里能直接看到
@@ -302,7 +302,6 @@ No known vulnerabilities found
 | 绿色流水线 | Actions → CI → 最近一次运行 |
 | Bandit 报告 | Actions → CI → *SAST - Bandit* → Summary |
 | pip-audit 报告 | Actions → CI → *SCA - pip-audit* → Summary |
-| 代码扫描结果 | Security → Code scanning |
 
 > 上面三张均已截好并嵌入本报告；`ci-green.png` 是 GitHub 运行页的真实截图，
 > `bandit.png` / `pip-audit.png` 是对 CI 中同一条命令输出的渲染（`scripts/render_output.py`）。
