@@ -620,24 +620,3 @@ like (`/.%2e/`, double encoding, abnormal request targets) is what makes
 detection rules and log review possible. More fundamentally, CVEs teach
 **patterns** — canonicalisation order, deserialisation, injection, broken access
 control — that reappear across languages and frameworks.
-
----
-
-## 7. Submission checklist
-
-| # | Requirement | Status / location |
-|---|---|---|
-| 1 | Public git repository link | `https://github.com/RyzLLL/-Information-Security-Lab1` (pushed) |
-| 2 | README.md with project description, security measures, SAST/SCA screenshots, CVE, reproduction, root cause, fix, proof | `README.md` / `README.zh-CN.md` |
-| 3 | Link to the last successful pipeline | `https://github.com/RyzLLL/-Information-Security-Lab1/actions` |
-| 4 | Folder with the fixes | `cve/Dockerfile.fixed`, `cve/docker-compose.fixed.yml` |
-| 5 | This report | `docs/report_en.md` (EN), `docs/report_zh.md` (ZH) |
-
-### Materials checklist
-
-- [x] `docs/screenshots/ci-green.png`
-- [x] `docs/screenshots/bandit.png`
-- [x] `docs/screenshots/pip-audit.png`
-- [x] `docs/screenshots/cve-exploit.png`
-- [x] `docs/screenshots/cve-fixed.png`
-- [x] Title page filled in (work no., title, name, HDU number)
